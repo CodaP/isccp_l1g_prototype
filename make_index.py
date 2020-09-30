@@ -3,8 +3,9 @@ import pyresample
 from pyresample.kd_tree import get_neighbour_info
 import numpy as np
 import pandas as pd
-import satpy
+from utils import get_area, get_grid
 from pathlib import Path
+import warnings
 
 
 def get_index(area, pc, radius=5000, nprocs=8):
@@ -22,32 +23,9 @@ def get_index(area, pc, radius=5000, nprocs=8):
     return grid_idx, sat_idx
 
 
-def get_grid(res):
-    """
-    res: Grid resolution (degree)
-    """
-    width = 360/res
-    height = 180/res
-    extent = [-180,-90,180,90]
-    pc = pyresample.AreaDefinition('pc','','pc','+proj=latlon +lat_0=0 +lon_0=0',
-                                   width=width,
-                                   height=height,area_extent=extent)
-    return pc
-
-def get_area(f, reader='abi_l1b'):
-    scene = satpy.Scene(
-        [f],
-        reader=reader
-        )
-    name = scene.available_dataset_names()[0]
-    scene.load([name])
-    area = scene[name].area
-    scene.unload()
-    return area
-
-def main(f, out_dir):
+def main(files, out_dir):
     out_dir.mkdir(exist_ok=True)
-    area = get_area(f)
+    area = get_area(files)
     grid = get_grid(.05)
     grid_idx, sat_idx = get_index(area, grid, radius=5e3)
     with open(out_dir / 'dst_index.dat','wb') as fp:
@@ -59,7 +37,7 @@ def main(f, out_dir):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('input_file')
+    parser.add_argument('input_files', nargs='+')
     parser.add_argument('output_dir')
     args = parser.parse_args()
     main(Path(args.input_file), Path(args.output_dir))

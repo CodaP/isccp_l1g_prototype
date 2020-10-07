@@ -24,10 +24,10 @@ def get_index(area, pc, radius=5000, nprocs=8):
 
 
 def main(files, out_dir):
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(exist_ok=True, parents=True)
     area = get_area(files)
     grid = get_grid(.05)
-    grid_idx, sat_idx = get_index(area, grid, radius=5e3)
+    grid_idx, sat_idx = get_index(area, grid, radius=2e3)
     with open(out_dir / 'dst_index.dat','wb') as fp:
         grid_idx.tofile(fp)
     with open(out_dir / 'src_index.dat','wb') as fp:

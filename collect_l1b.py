@@ -64,9 +64,19 @@ def get_fd_him(files, start):
     assert set(files.index.get_level_values('band').unique()) == set(range(1,17))
     return full_files
 
-def save_goes_files(out_root, sat, files, copy_func=shutil.copy):
-    with tqdm(list(files.iteritems())) as bar:
-        for (start, band), f in bar:
+def save_goes_files(out_root, sat, files, copy_func=shutil.copy, progress=True):
+    tasks = list(files.iteritems())
+    if progress:
+        with tqdm(tasks) as bar:
+            for (start, band), f in bar:
+                out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{band:02d}'
+                out_dir.mkdir(exist_ok=True, parents=True)
+                out = out_dir / f.name
+                if out.exists():
+                    out.unlink()
+                copy_func(f, out)
+    else:
+        for (start, band), f in tasks:
             out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{band:02d}'
             out_dir.mkdir(exist_ok=True, parents=True)
             out = out_dir / f.name
@@ -75,9 +85,19 @@ def save_goes_files(out_root, sat, files, copy_func=shutil.copy):
             copy_func(f, out)
             
             
-def save_him_files(out_root, sat, files, start, copy_func=shutil.copy):
-    with tqdm(list(files.iteritems())) as bar:
-        for (band, seg), f in bar:
+def save_him_files(out_root, sat, files, start, copy_func=shutil.copy, progress=True):
+    tasks = list(files.iteritems())
+    if progress:
+        with tqdm(tasks) as bar:
+            for (band, seg), f in bar:
+                out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{band:02d}'
+                out_dir.mkdir(exist_ok=True, parents=True)
+                out = out_dir / f.name
+                if out.exists():
+                    out.unlink()
+                copy_func(f, out)
+    else:
+        for (band, seg), f in tasks:
             out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{band:02d}'
             out_dir.mkdir(exist_ok=True, parents=True)
             out = out_dir / f.name
@@ -102,16 +122,20 @@ def get_all_fd(start, end):
     return g16_fd, g17_fd, h8_fd
 
 
-
-def collect_all(dt, out_root=L1B_DIR, copy_func=os.symlink):
+def get_start_dt(dt):
     round_down_30min = (dt - timedelta(minutes=dt.minute % 30)).replace(second=0, microsecond=0)
     start = round_down_30min
+    return start
+
+
+def collect_all(dt, out_root=L1B_DIR, copy_func=os.symlink, progress=True):
+    start = get_start_dt(dt)
     end = start + timedelta(minutes=10)
     
     g16_fd, g17_fd, h8_fd = get_all_fd(start, end)
-    save_goes_files(out_root, 'g16', g16_fd, copy_func=copy_func)
-    save_goes_files(out_root, 'g17', g17_fd, copy_func=copy_func)
-    save_him_files(out_root, 'h8', h8_fd, start, copy_func=copy_func)
+    save_goes_files(out_root, 'g16', g16_fd, copy_func=copy_func, progress=progress)
+    save_goes_files(out_root, 'g17', g17_fd, copy_func=copy_func, progress=progress)
+    save_him_files(out_root, 'h8', h8_fd, start, copy_func=copy_func, progress=progress)
     
     
 

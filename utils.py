@@ -6,6 +6,7 @@ from tqdm import tqdm
 import warnings
 import satpy
 import pyresample
+import sys
 
 
 def get_grid(res):
@@ -23,9 +24,17 @@ def get_grid(res):
 def get_area(files, reader=None):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        scene = satpy.Scene(
-            files, reader=reader
-            )
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        with open('/dev/null','w') as out:
+            with open('/dev/null','w') as err:
+                sys.stdout = out
+                sys.stderr = err
+                scene = satpy.Scene(
+                    files, reader=reader
+                    )
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
         name = scene.available_dataset_names()[0]
         scene.load([name])
         area = scene[name].area

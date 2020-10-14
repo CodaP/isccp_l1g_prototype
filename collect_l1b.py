@@ -11,9 +11,9 @@ import os
 L1B_DIR = Path('l1b')
 L1B_DIR.mkdir(exist_ok=True)
 
-G16_ROOT = Path(('/apollo/ait/dc/noaa/goes_r/abi/'))
-G17_ROOT = Path(('/apollo/ait/dc/noaa/goes_s/abi/'))
-H8_ROOT = Path(('/apollo/ait/dc/jma/himawari08/HSD/ahi/'))
+G16_ROOT = Path('/apollo/ait/dc/noaa/goes_r/abi/')
+G17_ROOT = Path('/apollo/ait/dc/noaa/goes_s/abi/')
+H8_ROOT = Path('/apollo/ait/dc/jma/himawari08/HSD/ahi/')
 
 
 def parse_or(fname):

@@ -7,7 +7,9 @@ import warnings
 import satpy
 import pyresample
 import sys
+import os
 
+os.environ['XRIT_DECOMPRESS_PATH'] = '/data/cphillips/isccp-ng/isccp_l1g_prototype/xrit/PublicDecompWT/xRITDecompress/xRITDecompress'
 
 def get_grid(res):
     """
@@ -30,15 +32,13 @@ def get_area(files, reader=None):
             with open('/dev/null','w') as err:
                 sys.stdout = out
                 sys.stderr = err
-                scene = satpy.Scene(
-                    files, reader=reader
-                    )
+                scene = satpy.Scene(files, reader=reader)
+                name = scene.available_dataset_names()[0]
+                scene.load([name])
+                area = scene[name].area
+                scene.unload()
         sys.stdout = old_stdout
         sys.stderr = old_stderr
-        name = scene.available_dataset_names()[0]
-        scene.load([name])
-        area = scene[name].area
-        scene.unload()
         return area
 
 def spherical_angle_add(a, b):
@@ -50,44 +50,63 @@ def spherical_angle_add(a, b):
     return c
 
 AHI_VARIABLES = {
-    1:'refl_00_47um',
-    2:'refl_00_51um',
-    3:'refl_00_65um',
-    4:'refl_00_86um',
-    5:'refl_01_60um',
-    6:'refl_02_20um',
-    7:'temp_03_80um',
-    8:'temp_06_20um',
-    9:'temp_06_70um',
-    10:'temp_07_30um',
-    11:'temp_08_50um',
-    12:'temp_09_70um',
-    13:'temp_10_40um',
-    14:'temp_11_00um',
-    15:'temp_12_00um',
-    16:'temp_13_30um'
+    '01':'refl_00_47um',
+    '02':'refl_00_51um',
+    '03':'refl_00_65um',
+    '04':'refl_00_86um',
+    '05':'refl_01_60um',
+    '06':'refl_02_20um',
+    '07':'temp_03_80um',
+    '08':'temp_06_20um',
+    '09':'temp_06_70um',
+    '10':'temp_07_30um',
+    '11':'temp_08_50um',
+    '12':'temp_09_70um',
+    '13':'temp_10_40um',
+    '14':'temp_11_00um',
+    '15':'temp_12_00um',
+    '16':'temp_13_30um'
 }
 ABI_VARIABLES = AHI_VARIABLES.copy()
-ABI_VARIABLES.update({2:'refl_00_65um',3:'refl_00_86um',4:'refl_01_38um'})
+ABI_VARIABLES.update({'02':'refl_00_65um','03':'refl_00_86um','04':'refl_01_38um'})
+
+MSG_VARIABLES = {
+    'IR_016':'temp_01_60um',
+    'IR_039':'temp_03_90um',
+    'IR_087':'temp_08_70um',
+    'IR_097':'temp_09_70um',
+    'IR_108':'temp_11_00um',
+    'IR_120':'temp_12_00um',
+    'IR_134':'temp_13_30um',
+    'VIS006':'refl_00_65um',
+    'VIS008':'refl_00_86um',
+    'WV_062':'temp_06_20um',
+    'WV_073':'temp_07_30um'
+}
 
 
 ABI_BANDS = {v:k for k,v in ABI_VARIABLES.items()}
 AHI_BANDS = {v:k for k,v in AHI_VARIABLES.items()}
+MSG_BANDS = {v:k for k,v in MSG_VARIABLES.items()}
 
 
 ALL_CHANNELS = set(AHI_BANDS) | set(ABI_BANDS)
 
 ABI_RES = {k:2 for k in ABI_BANDS.values()}
-ABI_RES[5] = 1
-ABI_RES[3] = 1
-ABI_RES[1] = 1
-ABI_RES[2] = 0.5
+ABI_RES['05'] = 1
+ABI_RES['03'] = 1
+ABI_RES['01'] = 1
+ABI_RES['02'] = 0.5
 
 AHI_RES = {k:2 for k in AHI_BANDS.values()}
-AHI_RES[1] = 1
-AHI_RES[2] = 1
-AHI_RES[4] = 1
-AHI_RES[3] = 0.5
+AHI_RES['01'] = 1
+AHI_RES['02'] = 1
+AHI_RES['04'] = 1
+AHI_RES['03'] = 0.5
+
+
+MSG_RES = {k:3 for k in MSG_BANDS.values()}
+
 
 CHANNEL_NICKNAME = {
  'refl_00_47um': 'Blue',
@@ -150,12 +169,16 @@ def remap(src_index, dst_index, v, shape):
 SAT_NAMES = {
     'g16':'GOES-16',
     'g17':'GOES-17',
-    'h8':'Himawari-8'
+    'h8':'Himawari-8',
+    'm8':'Meteosat-8',
+    'm11':'Meteosat-11'
 }
 WMO_IDS = {
     'g16':152,
     'g17':664,
-    'h8':167
+    'h8':167,
+    'm8':684,
+    'm11':305
 }
 
     

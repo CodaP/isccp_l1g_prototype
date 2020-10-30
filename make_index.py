@@ -69,5 +69,6 @@ if __name__ == '__main__':
     parser.add_argument('satzen_nc')
     parser.add_argument('max_satzen', type=float)
     args = parser.parse_args()
-    main(Path(args.input_file), Path(args.output_dir), Path(args.satzen_nc), args.max_satzen)
+    input_files = [Path(f) for f in args.input_files]
+    main(input_files, Path(args.output_dir), Path(args.satzen_nc), args.max_satzen)
     

@@ -5,7 +5,7 @@ import cartopy.crs as ccrs
 from tqdm import tqdm
 
 from satpy.readers.utils import get_geostationary_angle_extent
-from utils import spherical_angle_add, ABI_BANDS, AHI_BANDS, get_area
+from utils import spherical_angle_add, ABI_BANDS, AHI_BANDS, MSG_BANDS, get_area
 
 from collect_l1b import L1B_DIR
 
@@ -45,11 +45,14 @@ def make_geometry(dt_dir):
     rows = [
             ('g16', ABI_BANDS, 'abi_l1b'),
             ('g17', ABI_BANDS, 'abi_l1b'),
-            ('h8', AHI_BANDS, 'ahi_hsd')]
+            ('h8', AHI_BANDS, 'ahi_hsd'),
+            ('m8', MSG_BANDS, 'seviri_l1b_hrit'),
+            ('m11', MSG_BANDS, 'seviri_l1b_hrit')
+    ]
     with tqdm(rows) as bar:
         for sat, band_lookup, reader in bar:
             band = band_lookup['temp_11_00um']
-            files = list((dt_dir / sat / f'{band:02d}').glob('*'))
+            files = list((dt_dir / sat / f'{band}').glob('*'))
             area = get_area(files, reader=reader)
             sat_zen = get_satzen(area)
 
@@ -60,3 +63,7 @@ def make_geometry(dt_dir):
                 out.unlink()
             ds.to_netcdf(out, encoding=ENCODING)
         
+
+if __name__ == '__main__':
+    make_geometry(Path('l1b/20201001T0000'))
+

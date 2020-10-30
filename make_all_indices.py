@@ -11,19 +11,19 @@ r_sample = 2e3
 
 for sat,satzen_nc in zip(['g16','g17','h8'], satzen_ncs):
     if sat.startswith('g'):
-        bands = [14,1,2]
+        bands = ['14','01','02']
         r_footprints = [1e3,1e3,1e3]
     else:
-        bands = [14,1,3]
+        bands = ['14','01','03']
         r_footprints = [1e3,1e3,1e3]
     for band, r_footprint in zip(bands, r_footprints):
         max_satzen = get_max_satzen(r_footprint, r_sample)
         print('max satzen:', max_satzen)
-        band_dir = next((L1B / sat).glob('*')) / f'{band:02d}'
+        band_dir = next((L1B / sat).glob('*')) / f'{band}'
         assert band_dir.is_dir(), str(band_dir)
-        out_dir = INDEX / sat / f'{band:02d}'
+        out_dir = INDEX / sat / f'{band}'
         if (out_dir / 'src_index.dat').exists():
-            print(f'Already have {sat} {band:02d}')
+            print(f'Already have {sat} {band}')
             continue
         files = list(band_dir.glob('*'))
         print(f'Running {str(files[0])} -> {str(out_dir)}')

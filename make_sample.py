@@ -11,7 +11,7 @@ import satpy
 
 import warnings
 from pathlib import Path
-from utils import spherical_angle_add, ALL_CHANNELS, AHI_BANDS, ABI_BANDS, remap
+from utils import spherical_angle_add, ALL_CHANNELS, AHI_BANDS, ABI_BANDS, MSG_BANDS, remap, WMO_IDS
 
 from collect_l1b import L1B_DIR
 import time
@@ -37,14 +37,18 @@ def composite_channel(composite, channel, sat, dt, reader, band_map, wmo_id, wmo
         print(f'{sat} has no {channel}')
         return
     if sat.startswith('g'):
-        index_band = {1:1,3:1,5:1,2:2}.get(band, 14)
-    else:
-        index_band = {1:1,2:1,3:3,4:1}.get(band, 14)
-    band_dir = L1B_DIR/dt/sat/f'{band:02d}'
+        index_band = {'01':'01','03':'01','05':'01','02':'02'}.get(band, '14')
+    elif sat.startswith('h'):
+        index_band = {'01':'01','02':'01','03':'03','04':'01'}.get(band, '14')
+    elif sat.startswith('m'):
+        index_band = 'IR_108'
+    band_dir = L1B_DIR/dt/sat/f'{band}'
     assert band_dir.is_dir(), str(band_dir)
-    index_dir = INDEX / sat / f'{index_band:02d}'
+    index_dir = INDEX / sat / f'{index_band}'
     src_index = np.memmap(index_dir / 'src_index.dat', mode='r', dtype=np.uint64)
     dst_index = np.memmap(index_dir / 'dst_index.dat', mode='r', dtype=np.uint64)
+    src_index_nn = np.memmap(index_dir / 'src_index_nn.dat', mode='r', dtype=np.uint64)
+    dst_index_nn = np.memmap(index_dir / 'dst_index_nn.dat', mode='r', dtype=np.uint64)
     assert index_dir.is_dir()
     files = list(band_dir.glob('*'))
     with warnings.catch_warnings():
@@ -59,11 +63,14 @@ def composite_channel(composite, channel, sat, dt, reader, band_map, wmo_id, wmo
     if bar is not None:
         bar.set_description('Remapping imagery')
     out = remap(src_index, dst_index, v, grid_shape)
+    out_nn = remap(src_index_nn, dst_index_nn, v, grid_shape)
     scene.unload()
     if bar is not None:
         bar.set_description('Compositing')
     for layer in range(composite.shape[0]):
         mask = wmo_ids[layer].values == wmo_id
+        composite.values[layer, mask] = out_nn[mask]
+        mask = wmo_ids[layer].values  == (wmo_id | 0x1000)
         composite.values[layer, mask] = out[mask]
 
 
@@ -78,15 +85,18 @@ def main(dt, progress=True):
         out_nc = out_dir / f'{channel}.nc'
         start = time.time()
         composite = xr.DataArray(np.full((3, *grid_shape), np.nan, dtype=np.float32), dims=['layer','lat','lon'])
-        tasks = [('g16','abi_l1b', ABI_BANDS, 152),
-                   ('g17','abi_l1b', ABI_BANDS, 664),
-                   ('h8','ahi_hsd', AHI_BANDS, 167)]
+        tasks = [('g16','abi_l1b', ABI_BANDS),
+                   ('g17','abi_l1b', ABI_BANDS),
+                   ('h8','ahi_hsd', AHI_BANDS),
+                ('m8','seviri_l1b_hrit', MSG_BANDS), ('m11','seviri_l1b_hrit',MSG_BANDS)]
         if progress:
             with tqdm(tasks) as bar:
-                for sat, reader, band_map, wmo_id in bar:
+                for sat, reader, band_map in bar:
+                    wmo_id = WMO_IDS[sat]
                     composite_channel(composite, channel, sat, dt, reader, band_map, wmo_id, wmo_ids, bar=bar)
         else:
-            for sat, reader, band_map, wmo_id in tasks:
+            for sat, reader, band_map in tasks:
+                wmo_id = WMO_IDS[sat]
                 composite_channel(composite, channel, sat, dt, reader, band_map, wmo_id, wmo_ids)
         print(f"Saving {out_nc}")
         composite.to_dataset(name=channel).to_netcdf(out_nc, encoding={channel:ENCODING})
@@ -95,3 +105,11 @@ def main(dt, progress=True):
         print(f'Took {dur:.1f} sec')
     return out_dir
 
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dt')
+    args = parser.parse_args()
+    dt = pd.to_datetime(args.dt)
+    main(dt)

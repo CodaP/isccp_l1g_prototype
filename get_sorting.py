@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from utils import AHI_BANDS, ABI_BANDS, remap, WMO_IDS
+from utils import AHI_BANDS, ABI_BANDS, MSG_BANDS, remap, WMO_IDS
 from tqdm import tqdm
 import netCDF4
 from pathlib import Path
@@ -13,18 +13,27 @@ COMP_CACHE = Path('composite_cache')
 COMP_CACHE.mkdir(exist_ok=True)
 
 def get_sorting(grid_shape):
-    satzens = xr.DataArray(np.full((3, *grid_shape), np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
-    wmo_ids = xr.DataArray(np.full((3, *grid_shape), np.nan, dtype=np.uint16), dims=['layer','latitude','longitude'])
-    with tqdm([('g16',ABI_BANDS),('g17', ABI_BANDS),('h8', AHI_BANDS)]) as bar:
+    
+    sats = [('g16',ABI_BANDS),('g17', ABI_BANDS),('h8', AHI_BANDS), ('m8',MSG_BANDS), ('m11',MSG_BANDS)]
+    satzens = xr.DataArray(np.full((len(sats), *grid_shape), np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
+    wmo_ids = xr.DataArray(np.full((len(sats), *grid_shape), np.nan, dtype=np.uint16), dims=['layer','latitude','longitude'])
+    with tqdm(sats) as bar:
         for i,(sat, band_lookup) in enumerate(bar):
             wmo_id = WMO_IDS[sat]
             index_band = band_lookup['temp_11_00um']
-            index_dir = INDEX / sat / f'{index_band:02d}'
+            index_dir = INDEX / sat / f'{index_band}'
             src_index = np.memmap(index_dir / 'src_index.dat', mode='r', dtype=np.uint64)
             dst_index = np.memmap(index_dir / 'dst_index.dat', mode='r', dtype=np.uint64)
+            src_index_nn = np.memmap(index_dir / 'src_index_nn.dat', mode='r', dtype=np.uint64)
+            dst_index_nn = np.memmap(index_dir / 'dst_index_nn.dat', mode='r', dtype=np.uint64)
             satzen = xr.open_dataset(SATZEN_CACHE / f'{sat}_satzen.nc')
-            satzens.values[i,...] = remap(src_index, dst_index, satzen.satzen.values, grid_shape)
-            wmo_ids[i,...] = wmo_id
+            nn_satzen = remap(src_index_nn, dst_index_nn, satzen.satzen.values, grid_shape)
+            satzens.values[i,...] = nn_satzen
+            wmo_ids.values[i,...] = wmo_id
+            ellip_satzen = remap(src_index, dst_index, satzen.satzen.values, grid_shape)
+            mask = np.isfinite(ellip_satzen)
+            satzens.values[i,mask] = ellip_satzen[mask]
+            wmo_ids.values[i,mask] = (wmo_id | 0x1000)
             
     argsort = satzens.fillna(900).argsort(axis=0)
     satzens_sort = xr.DataArray(np.take_along_axis(satzens.values, argsort, 0), dims=satzens.dims)
@@ -43,3 +52,6 @@ def save_sorting(satzens, wmo_ids):
 def main(grid_shape=(3600,7200)):
     satzens, wmo_ids = get_sorting(grid_shape)
     save_sorting(satzens, wmo_ids)
+
+if __name__ == '__main__':
+    main()

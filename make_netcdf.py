@@ -11,17 +11,17 @@ import netCDF4
 
 def default_attrs():
     attrs = {}
-    for k in utils.ALL_CHANNELS:
+    for k in utils.ALL_BANDS:
         d = {}
         if k in utils.AHI_BANDS:
             d['ahi_band_number'] = utils.AHI_BANDS[k]
-            d['ahi_original_nadir_resolution_km'] = utils.AHI_RES[d['ahi_band_number']]
+            d['ahi_original_nadir_resolution_km'] = utils.AHI_RES[k]
         if k in utils.ABI_BANDS:
             d['abi_band_number'] = utils.ABI_BANDS[k]
-            d['abi_original_nadir_resolution_km'] = utils.ABI_RES[d['abi_band_number']]
-        d['channel_nickname'] = utils.CHANNEL_NICKNAME[k]
+            d['abi_original_nadir_resolution_km'] = utils.ABI_RES[k]
+        d['band_nickname'] = utils.BAND_NICKNAME[k]
         d['central_wavelength_um'] = float('.'.join(k.strip('um').split('_')[-2:]))
-        d['em_class'] = utils.CHANNEL_CLASS[k]
+        d['em_class'] = utils.BAND_CLASS[k]
         if k.startswith('temp_'):
             d['units'] = 'K'
             d['standard_name'] = 'brightness_temperature'
@@ -40,6 +40,12 @@ def default_attrs():
         'standard_name':'satellite zenith angle',
         'units':'degrees'
     }
+
+    attrs['sample_mode'] = {
+        'long_name':'data sampling mode',
+        'flag_values':[1,2],
+        'flag_meanings':"nearest-neighbor constant-footprint-area"
+    }
     return attrs
 
 def add_time(ds, dt, encoding):
@@ -57,7 +63,11 @@ def add_time(ds, dt, encoding):
 
 def default_encoding(grid_shape):
     encoding = {}
-    for k in utils.ALL_CHANNELS:
+    bands = utils.ALL_BANDS
+    for band in utils.STATS_BANDS:
+        for func in utils.STATS_FUNCS:
+            bands.add(f'{band}_{func}')
+    for k in bands:
         if k.startswith('refl'):
             encoding[k] = {
                 'zlib':True,
@@ -94,7 +104,19 @@ def default_encoding(grid_shape):
 
 
 def rewrite_nc(f, out_root, dt, lat, lon):
-    ds = xr.open_dataset(f).rename({'lon':'longitude','lat':'latitude'})
+    ds = xr.open_dataset(f)
+    k = next(iter(ds.data_vars))
+    ds.close()
+    if k == 'satzen':
+        rewrite_satzen(f, out_root, dt, lat, lon)
+    elif k == 'wmo_id':
+        rewrite_wmo_id(f, out_root, dt, lat, lon)
+    else:
+        rewrite_nc_general(f, out_root, dt, lat, lon)
+        
+
+def rewrite_nc_general(f, out_root, dt, lat, lon):
+    ds = xr.open_dataset(f)
     k = next(iter(ds.data_vars))
     grid_shape = ds[k].shape[-2:]
 

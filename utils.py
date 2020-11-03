@@ -28,17 +28,19 @@ def get_area(files, reader=None):
         warnings.simplefilter('ignore')
         old_stdout = sys.stdout
         old_stderr = sys.stderr
-        with open('/dev/null','w') as out:
-            with open('/dev/null','w') as err:
-                sys.stdout = out
-                sys.stderr = err
-                scene = satpy.Scene(files, reader=reader)
-                name = scene.available_dataset_names()[0]
-                scene.load([name])
-                area = scene[name].area
-                scene.unload()
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
+        try:
+            with open('/dev/null','w') as out:
+                with open('/dev/null','w') as err:
+                    sys.stdout = out
+                    sys.stderr = err
+                    scene = satpy.Scene(files, reader=reader)
+                    name = scene.available_dataset_names()[0]
+                    scene.load([name])
+                    area = scene[name].area
+                    scene.unload()
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
         return area
 
 def spherical_angle_add(a, b):
@@ -71,8 +73,8 @@ ABI_VARIABLES = AHI_VARIABLES.copy()
 ABI_VARIABLES.update({'02':'refl_00_65um','03':'refl_00_86um','04':'refl_01_38um'})
 
 MSG_VARIABLES = {
-    'IR_016':'temp_01_60um',
-    'IR_039':'temp_03_90um',
+    'IR_016':'refl_01_60um',
+    'IR_039':'temp_03_80um',
     'IR_087':'temp_08_70um',
     'IR_097':'temp_09_70um',
     'IR_108':'temp_11_00um',
@@ -90,25 +92,25 @@ AHI_BANDS = {v:k for k,v in AHI_VARIABLES.items()}
 MSG_BANDS = {v:k for k,v in MSG_VARIABLES.items()}
 
 
-ALL_CHANNELS = set(AHI_BANDS) | set(ABI_BANDS)
+ALL_BANDS = set(AHI_BANDS) | set(ABI_BANDS) | set(MSG_BANDS)
 
-ABI_RES = {k:2 for k in ABI_BANDS.values()}
-ABI_RES['05'] = 1
-ABI_RES['03'] = 1
-ABI_RES['01'] = 1
-ABI_RES['02'] = 0.5
+ABI_RES = {k:2 for k in ABI_BANDS}
+ABI_RES['refl_01_60um'] = 1
+ABI_RES['refl_00_86um'] = 1
+ABI_RES['refl_00_47um'] = 1
+ABI_RES['refl_00_65um'] = 0.5
 
-AHI_RES = {k:2 for k in AHI_BANDS.values()}
-AHI_RES['01'] = 1
-AHI_RES['02'] = 1
-AHI_RES['04'] = 1
-AHI_RES['03'] = 0.5
-
-
-MSG_RES = {k:3 for k in MSG_BANDS.values()}
+AHI_RES = {k:2 for k in AHI_BANDS}
+AHI_RES['refl_00_47um'] = 1
+AHI_RES['refl_00_51um'] = 1
+AHI_RES['refl_00_86um'] = 1
+AHI_RES['refl_00_65um'] = 0.5
 
 
-CHANNEL_NICKNAME = {
+MSG_RES = {k:3 for k in MSG_BANDS}
+
+
+BAND_NICKNAME = {
  'refl_00_47um': 'Blue',
  'refl_00_51um': 'Green',
  'refl_00_65um': 'Red',
@@ -117,10 +119,12 @@ CHANNEL_NICKNAME = {
  'refl_01_60um': 'Snow/Ice',
  'refl_02_20um': 'Cloud Phase',
  'temp_03_80um': 'Shortwave Window',
+ 'temp_03_90um': 'Shortwave Window',
  'temp_06_20um': 'Upper-Level Tropospheric Water Vapor',
  'temp_06_70um': 'Mid-Level Tropospheric Water Vapor',
  'temp_07_30um': 'Lower-level Water Vapor',
  'temp_08_50um': 'Cloud-Top Phase',
+ 'temp_08_70um': 'Total Water',
  'temp_09_70um': 'Ozone Band',
  'temp_10_40um': 'Clean IR Longwave Window',
  'temp_11_00um': 'IR Longwave Window Band',
@@ -128,7 +132,7 @@ CHANNEL_NICKNAME = {
  'temp_13_30um': 'CO2 longwave infrared'
 }
 
-CHANNEL_CLASS = {
+BAND_CLASS = {
  'refl_00_47um': 'visible',
  'refl_00_51um': 'visible',
  'refl_00_65um': 'visible',
@@ -137,10 +141,12 @@ CHANNEL_CLASS = {
  'refl_01_60um': 'near-infrared',
  'refl_02_20um': 'near-infrared',
  'temp_03_80um': 'infrared',
+ 'temp_03_90um': 'infrared',
  'temp_06_20um': 'infrared',
  'temp_06_70um': 'infrared',
  'temp_07_30um': 'infrared',
  'temp_08_50um': 'infrared',
+ 'temp_08_70um': 'infrared',
  'temp_09_70um': 'infrared',
  'temp_10_40um': 'infrared',
  'temp_11_00um': 'infrared',
@@ -148,14 +154,22 @@ CHANNEL_CLASS = {
  'temp_13_30um': 'infrared'}
 
 
-def remap(src_index, dst_index, v, shape):
+STATS_BANDS = {
+    'temp_11_00um',
+    'refl_00_65um'
+}
+STATS_FUNCS = ['mean','var','count','min','max']
+
+def remap_with_stats(src_index, dst_index, v, shape, funcs=STATS_FUNCS):
     a = pd.Series(v.ravel()[src_index], index=dst_index)
-    resample = a.groupby(a.index).mean()
-    out = np.full(shape, np.nan, dtype=np.float32)
-    out.ravel()[resample.index] = resample.values
+    resample = a.groupby(a.index).agg(funcs)
+    out = {}
+    for k in funcs:
+        out[k] = np.full(shape, np.nan, dtype=np.float32)
+        out[k].ravel()[resample[k].index] = resample[k].values
     return out
 
-def remap(src_index, dst_index, v, shape):
+def remap_fast_mean(src_index, dst_index, v, shape):
     dst_index = dst_index.astype(np.int64)
     weights = v.ravel()[src_index]
     counts = np.bincount(dst_index, weights=np.isfinite(weights), minlength=np.prod(shape))
@@ -181,4 +195,12 @@ WMO_IDS = {
     'm11':305
 }
 
+_bands = {'g':ABI_BANDS,'h':AHI_BANDS,'m':MSG_BANDS}
+_res = {'g':ABI_RES,'h':AHI_RES, 'm':MSG_RES}
+_readers = {'g':'abi_l1b', 'h':'ahi_hsd', 'm':'seviri_l1b_hrit'}
+
+ALL_SATS = [
+    {'sat':sat,'wmo_id':WMO_IDS[sat],'name':SAT_NAMES[sat],'bands': _bands[sat[0]], 'res':_res[sat[0]],
+    'reader':_readers[sat[0]]}
+            for sat in ['g16','g17','h8','m8','m11']]
     

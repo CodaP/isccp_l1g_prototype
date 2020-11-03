@@ -5,6 +5,7 @@ import make_netcdf
 import utils
 from multiprocessing import Pool
 OUT = Path('final')
+COMPOSITE_CACHE = Path('composite_cache')
 
 LAT=None
 LON=None
@@ -29,8 +30,11 @@ def rewrite():
             out_dir = Path(out_dir)
             for f in out_dir.glob('*.nc'):
                 tasks.append((dt, f))
+            tasks.append((dt, COMPOSITE_CACHE / 'wmo_id.nc'))
+            tasks.append((dt, COMPOSITE_CACHE / 'satzen.nc'))
+            tasks.append((dt, COMPOSITE_CACHE / 'sample_mode.nc'))
     tasks = sorted(tasks)
-
+    
     with Pool(12) as pool:
         with tqdm(pool.imap(doit, tasks), total=len(tasks)) as bar:
             for ret in bar:

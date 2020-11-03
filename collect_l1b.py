@@ -11,9 +11,12 @@ import os
 L1B_DIR = Path('l1b')
 L1B_DIR.mkdir(exist_ok=True)
 
-G16_ROOT = Path('/apollo/ait/dc/noaa/goes_r/abi/')
-G17_ROOT = Path('/apollo/ait/dc/noaa/goes_s/abi/')
-H8_ROOT = Path('/apollo/ait/dc/jma/himawari08/HSD/ahi/')
+#G16_ROOT = Path('/apollo/ait/dc/noaa/goes_r/abi/')
+G16_ROOT = Path('/arcdata/goes/grb/goes16/')
+#G17_ROOT = Path('/apollo/ait/dc/noaa/goes_s/abi/')
+G17_ROOT = Path('/arcdata/goes/grb/goes17/')
+#H8_ROOT = Path('/apollo/ait/dc/jma/himawari08/HSD/ahi/')
+H8_ROOT = Path('/arcdata/nongoes/jma/himawari08/ahi/')
 M8_ROOT = Path('/arcdata/nongoes/meteosat/meteosat8/')
 M11_ROOT = Path('/arcdata/nongoes/meteosat/meteosat11/')
 
@@ -100,46 +103,40 @@ def get_fd_hrit(files, start):
 
 def save_goes_files(out_root, sat, files, copy_func=shutil.copy, progress=True):
     tasks = list(files.iteritems())
-    if progress:
-        with tqdm(tasks) as bar:
-            for (start, band), f in bar:
-                out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{band}'
-                out_dir.mkdir(exist_ok=True, parents=True)
-                out = out_dir / f.name
-                if out.exists():
-                    out.unlink()
-                copy_func(f, out)
-    else:
-        for (start, band), f in tasks:
-            out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{band}'
+    def run(it):
+        for (start, band), f in it:
+            variable = utils.ABI_VARIABLES[f'{band:02d}']
+            out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{variable}'
             out_dir.mkdir(exist_ok=True, parents=True)
             out = out_dir / f.name
             if out.exists():
                 out.unlink()
             copy_func(f, out)
+    if progress:
+        with tqdm(tasks) as bar:
+            run(bar)
+    else:
+        run(tasks)
             
             
 def save_him_files(out_root, sat, files, start, copy_func=shutil.copy, progress=True):
     tasks = list(files.iteritems())
-    if progress:
-        with tqdm(tasks) as bar:
-            for (band, seg), f in bar:
-                out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{band}'
-                out_dir.mkdir(exist_ok=True, parents=True)
-                out = out_dir / f.name
-                if out.exists():
-                    out.unlink()
-                copy_func(f, out)
-    else:
-        for (band, seg), f in tasks:
-            out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{band}'
+    def run(it):
+        for (band, seg), f in it:
+            variable = utils.AHI_VARIABLES[f'{band:02d}']
+            out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{variable}'
             out_dir.mkdir(exist_ok=True, parents=True)
             out = out_dir / f.name
             if out.exists():
                 out.unlink()
             copy_func(f, out)
+    if progress:
+        with tqdm(tasks) as bar:
+            run(bar)
+    else:
+        run(tasks)
 
-
+        
 def save_hrit_files(out_root, sat, files, start, copy_func=shutil.copy, progress=True):
     bands = list(files.groupby('band'))
     def run(it):
@@ -147,7 +144,8 @@ def save_hrit_files(out_root, sat, files, start, copy_func=shutil.copy, progress
             if band != '':
                 # include EPI + PRO
                 subfiles = files.loc[[band,''],:].tolist()
-                out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{band}'
+                variable = utils.MSG_VARIABLES[band]
+                out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{variable}'
                 out_dir.mkdir(exist_ok=True, parents=True)
                 for f in subfiles:
                     out = out_dir / f.name
@@ -162,8 +160,8 @@ def save_hrit_files(out_root, sat, files, start, copy_func=shutil.copy, progress
 
             
 def get_all_fd(start, end):
-    G16_DIR = G16_ROOT / start.strftime('%Y%m%d/L1b/G16/RadF')
-    G17_DIR = G17_ROOT / start.strftime('%Y%m%d/L1b/G17/RadF')
+    G16_DIR = G16_ROOT / start.strftime('%Y/%Y_%m_%d_%j/abi/L1b/RadF')
+    G17_DIR = G17_ROOT / start.strftime('%Y/%Y_%m_%d_%j/abi/L1b/RadF')
     H8_DIR = H8_ROOT / start.strftime('%Y/%Y_%m_%d_%j/%H%M')
     M8_DIR = M8_ROOT / start.strftime('%Y/%Y_%m_%d_%j')
     M11_DIR = M11_ROOT / start.strftime('%Y/%Y_%m_%d_%j')
@@ -197,8 +195,9 @@ def collect_all(dt, out_root=L1B_DIR, copy_func=os.symlink, progress=True):
     save_goes_files(out_root, 'g16', g16_fd, copy_func=copy_func, progress=progress)
     save_goes_files(out_root, 'g17', g17_fd, copy_func=copy_func, progress=progress)
     save_him_files(out_root, 'h8', h8_fd, start, copy_func=copy_func, progress=progress)
-    save_hrit_files(out_root, 'm8', m8_fd, start, copy_func=shutil.copy, progress=progress)
-    save_hrit_files(out_root, 'm11', m11_fd, start, copy_func=shutil.copy, progress=progress)
+    # MSG are access controlled, so copy the files
+    save_hrit_files(out_root, 'm8', m8_fd, start, copy_func=copy_func, progress=progress)
+    save_hrit_files(out_root, 'm11', m11_fd, start, copy_func=copy_func, progress=progress)
     
     
 

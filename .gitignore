@@ -1,0 +1,16 @@
+*.swp
+__pycache__/
+abi_scanline_time_luts/
+composite_cache/
+coord_descent/
+final/
+gsics/
+index/
+index_agg_src/
+l1b/
+make_gif.py
+meteosat8/
+notebooks/.ipynb_checkpoints/
+satzen_cache/
+xrit/
+

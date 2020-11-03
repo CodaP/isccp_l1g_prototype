@@ -5,7 +5,7 @@ import cartopy.crs as ccrs
 from tqdm import tqdm
 
 from satpy.readers.utils import get_geostationary_angle_extent
-from utils import spherical_angle_add, ABI_BANDS, AHI_BANDS, MSG_BANDS, get_area
+from utils import spherical_angle_add, get_area, ALL_SATS
 
 from collect_l1b import L1B_DIR
 
@@ -17,10 +17,12 @@ SATZEN_CACHE.mkdir(exist_ok=True)
 
 def get_satzen(area):
     height, width = area.shape
-    xang, yang = get_geostationary_angle_extent(area)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        proj = area.to_cartopy_crs()
+        xang, yang = get_geostationary_angle_extent(area)
     x,y = np.meshgrid(np.linspace(-xang, xang,width, dtype=np.float32),
                       np.linspace(-yang, yang, height, dtype=np.float32))
-    proj = area.to_cartopy_crs()
     h = proj.proj4_params['h']
     lon,lat = ccrs.PlateCarree().transform_points(proj, y*h, x*h).T[:2]
     a = np.deg2rad(lon - proj.proj4_params['lon_0'])
@@ -42,17 +44,11 @@ ENCODING = {
 
 
 def make_geometry(dt_dir):
-    rows = [
-            ('g16', ABI_BANDS, 'abi_l1b'),
-            ('g17', ABI_BANDS, 'abi_l1b'),
-            ('h8', AHI_BANDS, 'ahi_hsd'),
-            ('m8', MSG_BANDS, 'seviri_l1b_hrit'),
-            ('m11', MSG_BANDS, 'seviri_l1b_hrit')
-    ]
-    with tqdm(rows) as bar:
-        for sat, band_lookup, reader in bar:
-            band = band_lookup['temp_11_00um']
-            files = list((dt_dir / sat / f'{band}').glob('*'))
+    with tqdm(ALL_SATS) as bar:
+        for attrs in bar:
+            sat = attrs['sat']
+            reader = attrs['reader']
+            files = list((dt_dir / sat / f'temp_11_00um').glob('*'))
             area = get_area(files, reader=reader)
             sat_zen = get_satzen(area)
 

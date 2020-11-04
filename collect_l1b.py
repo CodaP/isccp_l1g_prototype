@@ -75,7 +75,7 @@ def get_fd_him(files, start):
     def all_or_none(x):
         segs = x.droplevel('band').reindex(all_segments)
         if segs.isnull().any():
-            return []
+            return segs.iloc[:0]
         else:
             return segs
     full_files = files.groupby(['band']).apply(all_or_none)
@@ -91,7 +91,7 @@ def get_fd_hrit(files, start):
     def all_or_none(x):
         segs = x.set_index('segment').reindex(all_segments)
         if segs.path.isnull().any():
-            return []
+            return segs.iloc[:0]
         else:
             return segs
     full_files = files.loc[files.band.isin(bands)].groupby('band').apply(all_or_none).path
@@ -207,7 +207,13 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('dt')
+    parser.add_argument('end_dt', nargs='?')
     args = parser.parse_args()
     dt = pd.to_datetime(args.dt)
-    collect_all(dt)
+    if args.end_dt is not None:
+        dt = pd.date_range(dt, args.end_dt, freq='30min')
+        for d in dt:
+            collect_all(d)
+    else:
+        collect_all(dt)
 

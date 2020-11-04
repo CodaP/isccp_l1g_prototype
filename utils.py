@@ -11,7 +11,7 @@ import os
 
 os.environ['XRIT_DECOMPRESS_PATH'] = '/data/cphillips/isccp-ng/isccp_l1g_prototype/xrit/PublicDecompWT/xRITDecompress/xRITDecompress'
 
-def get_grid(res):
+def get_grid(res=.25):
     """
     res: Grid resolution (degree)
     """

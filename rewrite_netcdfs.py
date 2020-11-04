@@ -17,7 +17,7 @@ def doit(item):
 def rewrite():
     CACHE = Path('composite_cache')
     tasks = []
-    grid = utils.get_grid(.05)
+    grid = utils.get_grid()
     grid_shape=grid.shape
 
     lon, lat = grid.get_lonlats()

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from utils import AHI_BANDS, ABI_BANDS, MSG_BANDS, remap_fast_mean, WMO_IDS, ALL_SATS
+from utils import AHI_BANDS, ABI_BANDS, MSG_BANDS, remap_fast_mean, WMO_IDS, ALL_SATS, get_grid
 from tqdm import tqdm
 import netCDF4
 from pathlib import Path
@@ -22,7 +22,7 @@ def get_sorting(grid_shape):
             sat = attrs['sat']
             wmo_id = WMO_IDS[sat]
             index_band = get_index_bands(attrs['res'])[attrs['res']['temp_11_00um']]
-            max_satzen = get_max_satzen(max(attrs['res'].values()), 4)
+            max_satzen = get_max_satzen(max(attrs['res'].values())/2, 2)
             bar.set_description(f'max satzen: {max_satzen}')
             index_dir = INDEX / sat / f'{index_band}'
             src_index = np.memmap(index_dir / 'src_index.dat', mode='r', dtype=np.uint32)
@@ -65,7 +65,10 @@ def save_sorting(satzens, wmo_ids, sample_mode):
     sample_mode.to_dataset(name='sample_mode').to_netcdf(COMP_CACHE / 'sample_mode.nc',
                                                  encoding={
                                                      'sample_mode':{'_FillValue':0, 'zlib':True}})
-def main(grid_shape=(3600,7200)):
+def main(grid=None):
+    if grid is None:
+        grid = get_grid()
+    grid_shape = grid.shape
     satzens, wmo_ids, sample_mode = get_sorting(grid_shape)
     save_sorting(satzens, wmo_ids, sample_mode)
 

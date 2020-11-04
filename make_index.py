@@ -49,13 +49,17 @@ def get_index(area, pc, satzen, max_satzen, radius=5000, nprocs=8):
     return grid_idx, sat_idx
 
 
-def get_index_fast(area, radius=2e3, nprocs=8):
+def get_index_fast(area, pc, radius=2e3, nprocs=8):
     assert radius == 2e3
     rows,cols = area.shape
+    grid_rows, grid_cols = pc.shape
     coords = area.get_cartesian_coords(nprocs=nprocs)
     coords_padded = np.pad(coords.astype(np.float32), ((0,0),(0,0),(0,1))).astype(np.float32)
     coords_padded.tofile('coord_descent/sat_coords.dat')
-    subprocess.run(['./main',str(rows),str(cols), '3600','7200'], cwd='coord_descent', capture_output=True)
+    grid_coords = pc.get_cartesian_coords()
+    grid_coords_pad = np.pad(grid_coords, ((0,0),(0,0),(0,1))).astype(np.float32)
+    grid_coords_pad.astype(np.float32).tofile('coord_descent/grid_coords.dat')
+    subprocess.run(['./main',str(rows),str(cols), str(grid_rows),str(grid_cols)], cwd='coord_descent', capture_output=False)
     sat_idx = np.memmap('coord_descent/src_index.dat', mode='r', dtype=np.uint32)
     grid_idx = np.memmap('coord_descent/dst_index.dat', mode='r', dtype=np.uint32)
     #s = pd.Series(sat_idx, index=grid_idx)
@@ -81,12 +85,12 @@ def make_one(files, out_dir, satzen_nc, max_satzen, bar=None):
     #satzen = satzen.interp(y=np.linspace(0,satzen.shape[0], area.shape[0]),
         #x=np.linspace(0,satzen.shape[1], area.shape[1])).values
     set_d(bar, 'setup grid')
-    grid = get_grid(.05)
+    grid = get_grid()
     
     # Elliptical mean
     set_d(bar, f'making ellip index ({area.shape}) -> ({grid.shape})')
     #grid_idx, sat_idx = get_index(area, grid, satzen, max_satzen, radius=2e3)
-    grid_idx, sat_idx = get_index_fast(area, radius=2e3)
+    grid_idx, sat_idx = get_index_fast(area, grid, radius=2e3)
     set_d(bar, 'saving ellip index')
     with open(out_dir / 'dst_index.dat','wb') as fp:
         grid_idx.tofile(fp)

@@ -95,7 +95,8 @@ def main(dt, progress=True):
     wmo_ids = xr.open_dataset(COMP_CACHE / 'wmo_id.nc').wmo_id
     sample_mode = xr.open_dataset(COMP_CACHE / 'sample_mode.nc').sample_mode
     grid_shape = wmo_ids.shape
-    ordered_bands = ['temp_11_00um', *sorted(ALL_BANDS - set('temp_11_0um'))]
+    print(grid_shape)
+    ordered_bands = ['temp_11_00um', *sorted(ALL_BANDS - set(['temp_11_00um']))]
     out_dir = COMP_CACHE / dt
     out_dir.mkdir(exist_ok=True)
     for band in ordered_bands:
@@ -130,7 +131,10 @@ def main(dt, progress=True):
                 composite = run(bar, bar=bar)
         else:
             composite = run(ALL_SATS)
-        print(f"Saving {out_nc}")
+        if isinstance(out_nc, dict):
+            print(f"Saving {out_nc.values()}")
+        else:
+            print(f"Saving {out_nc}")
         if with_stats:
             for k in sorted(composite):
                 if k == 'mean':

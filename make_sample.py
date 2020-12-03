@@ -5,6 +5,7 @@ import xarray as xr
 import netCDF4
 
 from tqdm import tqdm
+import sys
 
 import cartopy.crs as ccrs
 import satpy
@@ -16,6 +17,9 @@ from make_index import get_index_bands
 
 from collect_l1b import L1B_DIR
 import time
+import tempfile
+import os
+import shutil
 
 COMP_CACHE = Path('composite_cache')
 COMP_CACHE.mkdir(exist_ok=True)
@@ -29,6 +33,10 @@ ENCODING = {
     'scale_factor':.01,
     'add_offset':50
 }
+
+orig_print = print
+def print(*args, flush=False, **kwargs):
+    orig_print(*args, flush=True, **kwargs)
 
 def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, with_stats=False, bar=None):
     grid_shape = wmo_ids.shape
@@ -50,15 +58,30 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
     files = list(band_dir.glob('*'))
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        scene = satpy.Scene(files, reader=reader)
-        ds_names = scene.available_dataset_names()
-        scene.load(ds_names)
-        area = scene[ds_names[0]].area
+        old_stdout = sys.stdout
+        old_stderr = sys.stderr
+        try:
+            with open('/dev/null','w') as out:
+                with open('/dev/null','w') as err:
+                    sys.stdout = out
+                    sys.stderr = err
+                    scene = satpy.Scene(files, reader=reader)
+                    ds_names = scene.available_dataset_names()
+                    scene.load(ds_names)
+        except Exception:
+            raise IOError('Problem reading files')
+        finally:
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
+        try:
+            area = scene[ds_names[0]].area
+        except KeyError:
+            raise IOError('Problem reading files')
         if bar is not None:
-            bar.set_description(f'Loading {sat} band {band}')
+            bar.set_description(f'Loading {sat} band {band} {dt}')
         v = scene[ds_names[0]].values
     if bar is not None:
-        bar.set_description('Remapping imagery')
+        bar.set_description(f'Remapping imagery {sat} {band} {dt}')
         
         
     if not with_stats:
@@ -72,7 +95,7 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
     
     def do_composite(composite, out_nn, out, do_nn=True):
         if bar is not None:
-            bar.set_description('Compositing')
+            bar.set_description(f'Compositing {sat} {band} {dt}')
         for layer in range(composite.shape[0]):
             if do_nn:
                 # Nearest-neighbor sampling
@@ -104,14 +127,12 @@ def main(dt, progress=True):
         if with_stats:
             out_nc = {k:out_dir / f'{band}_{k}.nc' for k in STATS_FUNCS}
             out_nc['mean'] = out_dir / f'{band}.nc'
-            for f in out_nc.values():
-                if f.exists():
-                    print(f'Already have {f}')
-                    continue
+            if all([f.exists() for f in out_nc.values()]):
+                continue
         else:
             out_nc = out_dir / f'{band}.nc'
             if out_nc.exists():
-                print(f'Already have {out_nc}')
+                #print(f'Already have {out_nc}')
                 continue
         start = time.time()
         def run(it,bar=None):
@@ -124,7 +145,19 @@ def main(dt, progress=True):
                 res = attrs['res'][band]
                 wmo_id = WMO_IDS[sat]
                 index_band = get_index_bands(attrs['res'])[res]
-                composite = composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, with_stats=with_stats, bar=bar)
+                tmp_root = Path(tempfile.gettempdir())
+                tmp = tmp_root / f'{sat}_{band}_{dt}'
+                tmp.mkdir()
+                try:
+                    tempfile.tempdir = str(tmp)
+                    os.environ['TMP'] = str(tmp)
+                    composite = composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, with_stats=with_stats, bar=bar)
+                except IOError:
+                    print(f'Error reading {sat}')
+                finally:
+                    shutil.rmtree(tmp)
+                    tempfile.tempdir = str(tmp_root)
+                    os.environ['TMP'] = str(tmp_root)
             return composite
         if progress:
             with tqdm(ALL_SATS) as bar:
@@ -159,6 +192,16 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('dt')
+    parser.add_argument('end', nargs='?')
     args = parser.parse_args()
     dt = pd.to_datetime(args.dt)
-    main(dt)
+    if args.end is not None:
+        end = pd.to_datetime(args.end)
+        for dt in pd.date_range(dt, end, freq='30min'):
+            try:
+                main(dt)
+            except Exception as e:
+                print(e, flush=True)
+    else:
+        main(dt)
+

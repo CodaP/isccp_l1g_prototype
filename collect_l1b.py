@@ -16,10 +16,11 @@ G16_ROOT = Path('/arcdata/goes/grb/goes16/')
 #G17_ROOT = Path('/apollo/ait/dc/noaa/goes_s/abi/')
 G17_ROOT = Path('/arcdata/goes/grb/goes17/')
 #H8_ROOT = Path('/apollo/ait/dc/jma/himawari08/HSD/ahi/')
-H8_ROOT = Path('/arcdata/nongoes/jma/himawari08/ahi/')
+H8_ROOT = Path('/arcdata/nongoes/japan/himawari08/')
 M8_ROOT = Path('/arcdata/nongoes/meteosat/meteosat8/')
 M11_ROOT = Path('/arcdata/nongoes/meteosat/meteosat11/')
 
+ROOTS = {'g16':G16_ROOT, 'g17':G17_ROOT, 'h8':H8_ROOT, 'm8':M8_ROOT, 'm11':M11_ROOT}
 
 def parse_or(fname):
     _,band,sat,start,end,create = fname.split('.')[0].split('_')
@@ -46,11 +47,15 @@ def parse_hrit_file(f):
 
 def get_hrit_files(d):
     files = pd.DataFrame(parse_hrit_file(f) for f in sorted(d.glob('*')))
+    if files.empty:
+        return
     return files
 
 
 def get_or_files(d):
     files = pd.Series({parse_or(f.name):f for f in d.glob('*.nc')}).sort_index()
+    if files.empty:
+        return
     files.index.names=['start','end','band']
     return files
 
@@ -58,18 +63,19 @@ def get_dat_files(d):
     files = {}
     for f in d.rglob("*FLDK*.DAT"):
         files[parse_dat(f.name)] = f
-    files = pd.Series(files).sort_index()
-    files.index.names=['start','band','segment']
-    return files
+    if files:
+        files = pd.Series(files).sort_index()
+        files.index.names=['start','band','segment']
+        return files
 
-def get_fd_goes(files, start, end):
+def filter_fd_goes(files, start, end):
     candidates = files.loc[:end, start:]
     longest = candidates.groupby(['start','band']).apply(lambda x: x.sort_index().iloc[-1])
     sizes = longest.groupby('start').size()
     full = longest.loc[[sizes.index[sizes == 16][0]]]
     return full
 
-def get_fd_him(files, start):
+def filter_fd_him(files, start, end=None):
     all_segments = [f'S{i:02}10' for i in range(1,11)]
     files = files.loc[start]
     def all_or_none(x):
@@ -83,7 +89,7 @@ def get_fd_him(files, start):
     return full_files
 
 
-def get_fd_hrit(files, start):
+def filter_fd_hrit(files, start, end=None):
     all_segments = [f'00000{i}' for i in range(1,9)]
     bands = [ 'VIS008', 'VIS006', 'IR_039', 'IR_087', 'WV_073',
         'IR_108', 'IR_097', 'IR_134', 'WV_062', 'IR_016', 'IR_120']
@@ -106,7 +112,7 @@ def save_goes_files(out_root, sat, files, copy_func=shutil.copy, progress=True):
     def run(it):
         for (start, band), f in it:
             variable = utils.ABI_VARIABLES[f'{band:02d}']
-            out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{variable}'
+            out_dir = out_root / f'{variable}'
             out_dir.mkdir(exist_ok=True, parents=True)
             out = out_dir / f.name
             if out.exists():
@@ -119,12 +125,12 @@ def save_goes_files(out_root, sat, files, copy_func=shutil.copy, progress=True):
         run(tasks)
             
             
-def save_him_files(out_root, sat, files, start, copy_func=shutil.copy, progress=True):
+def save_him_files(out_root, sat, files, copy_func=shutil.copy, progress=True):
     tasks = list(files.iteritems())
     def run(it):
         for (band, seg), f in it:
             variable = utils.AHI_VARIABLES[f'{band:02d}']
-            out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{variable}'
+            out_dir = out_root / f'{variable}'
             out_dir.mkdir(exist_ok=True, parents=True)
             out = out_dir / f.name
             if out.exists():
@@ -137,7 +143,7 @@ def save_him_files(out_root, sat, files, start, copy_func=shutil.copy, progress=
         run(tasks)
 
         
-def save_hrit_files(out_root, sat, files, start, copy_func=shutil.copy, progress=True):
+def save_hrit_files(out_root, sat, files, copy_func=shutil.copy, progress=True):
     bands = list(files.groupby('band'))
     def run(it):
         for band, _ in it:
@@ -145,7 +151,7 @@ def save_hrit_files(out_root, sat, files, start, copy_func=shutil.copy, progress
                 # include EPI + PRO
                 subfiles = files.loc[[band,''],:].tolist()
                 variable = utils.MSG_VARIABLES[band]
-                out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat / f'{variable}'
+                out_dir = out_root / f'{variable}'
                 out_dir.mkdir(exist_ok=True, parents=True)
                 for f in subfiles:
                     out = out_dir / f.name
@@ -158,28 +164,32 @@ def save_hrit_files(out_root, sat, files, start, copy_func=shutil.copy, progress
     else:
         run(bands)
 
-            
-def get_all_fd(start, end):
-    G16_DIR = G16_ROOT / start.strftime('%Y/%Y_%m_%d_%j/abi/L1b/RadF')
-    G17_DIR = G17_ROOT / start.strftime('%Y/%Y_%m_%d_%j/abi/L1b/RadF')
-    H8_DIR = H8_ROOT / start.strftime('%Y/%Y_%m_%d_%j/%H%M')
-    M8_DIR = M8_ROOT / start.strftime('%Y/%Y_%m_%d_%j')
-    M11_DIR = M11_ROOT / start.strftime('%Y/%Y_%m_%d_%j')
-    for d in G16_DIR, G17_DIR, H8_DIR, M8_DIR, M11_DIR:
-        assert d.is_dir(), d
-    g16_files = get_or_files(G16_DIR)
-    g17_files = get_or_files(G17_DIR)
-    h8_files = get_dat_files(H8_DIR)
-    m8_files = get_hrit_files(M8_DIR)
-    m11_files = get_hrit_files(M11_DIR)
-    
-    g16_fd = get_fd_goes(g16_files, start, end)
-    g17_fd = get_fd_goes(g17_files, start, end)
-    h8_fd = get_fd_him(h8_files, start)
-    m8_fd = get_fd_hrit(m8_files, start)
-    m11_fd = get_fd_hrit(m11_files, start)
-    return g16_fd, g17_fd, h8_fd, m8_fd, m11_fd
 
+def save_files(out_dir, sat, files, copy_func=os.symlink, progress=True):
+    save_func = {'g':save_goes_files, 'h':save_him_files, 'm':save_hrit_files}[sat[0]]
+    save_func(out_dir, sat, files, copy_func=copy_func, progress=progress)
+
+
+def _get_fd(root, fmt, get_files, filter_fd, start, end):
+    dir = root / start.strftime(fmt)
+    if not dir.is_dir():
+        print(f'{dir} does not exist')
+        return
+    files = get_files(dir)
+    if files is not None and len(files) > 0:
+        fd = filter_fd(files, start, end)
+        return fd
+    else:
+        print(f'no good files in {dir}')
+
+def get_fd(sat, start, end):
+    root = ROOTS[sat]
+    fmts = {'g':'%Y/%Y_%m_%d_%j/abi/L1b/RadF','h':'%Y_%m/%Y_%m_%d_%j/%H%M','m':'%Y/%Y_%m_%d_%j'}
+    fmt = fmts[sat[0]]
+    get_files = {'g':get_or_files,'h':get_dat_files,'m':get_hrit_files}[sat[0]]
+    filter_fd = {'g':filter_fd_goes, 'h':filter_fd_him, 'm':filter_fd_hrit}[sat[0]]
+    return _get_fd(root, fmt, get_files, filter_fd, start, end)
+            
 
 def get_start_dt(dt):
     round_down_30min = (dt - timedelta(minutes=dt.minute % 30)).replace(second=0, microsecond=0)
@@ -187,20 +197,25 @@ def get_start_dt(dt):
     return start
 
 
-def collect_all(dt, out_root=L1B_DIR, copy_func=os.symlink, progress=True):
+def collect_all(dt, out_root=L1B_DIR, error_file=Path('errors.txt'), copy_func=os.symlink, progress=True):
     start = get_start_dt(dt)
     end = start + timedelta(minutes=10)
     
-    g16_fd, g17_fd, h8_fd, m8_fd, m11_fd = get_all_fd(start, end)
-    save_goes_files(out_root, 'g16', g16_fd, copy_func=copy_func, progress=progress)
-    save_goes_files(out_root, 'g17', g17_fd, copy_func=copy_func, progress=progress)
-    save_him_files(out_root, 'h8', h8_fd, start, copy_func=copy_func, progress=progress)
-    # MSG are access controlled, so copy the files
-    save_hrit_files(out_root, 'm8', m8_fd, start, copy_func=copy_func, progress=progress)
-    save_hrit_files(out_root, 'm11', m11_fd, start, copy_func=copy_func, progress=progress)
+    for attrs in utils.ALL_SATS:
+        sat = attrs['sat']
+        out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat
+        if out_dir.is_dir():
+            #print(f'Already have {out_dir}')
+            continue
+        else:
+            print(start.strftime(f'Collecting L1b for {sat} %Y-%m-%dT%H:%M'))
+            fd = get_fd(sat, start, end)
+            if fd is not None:
+                save_files(out_dir, sat, fd, copy_func=copy_func, progress=progress)
+            else:
+                with open(error_file, 'a') as fp:
+                    fp.write(str(out_dir)+'\n')
     
-    
-
     
 
 if __name__ == '__main__':

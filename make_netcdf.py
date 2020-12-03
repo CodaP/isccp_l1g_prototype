@@ -20,7 +20,7 @@ def default_attrs():
             d['abi_band_number'] = utils.ABI_BANDS[k]
             d['abi_original_nadir_resolution_km'] = utils.ABI_RES[k]
         d['band_nickname'] = utils.BAND_NICKNAME[k]
-        d['central_wavelength_um'] = float('.'.join(k.strip('um').split('_')[-2:]))
+        d['central_wavelength_um'] = utils.BAND_CENTRAL_WAV[k]
         d['em_class'] = utils.BAND_CLASS[k]
         if k.startswith('temp_'):
             d['units'] = 'K'
@@ -108,11 +108,11 @@ def rewrite_nc(f, out_root, dt, lat, lon):
     k = next(iter(ds.data_vars))
     ds.close()
     if k == 'satzen':
-        rewrite_satzen(f, out_root, dt, lat, lon)
+        return rewrite_satzen(f, out_root, dt, lat, lon)
     elif k == 'wmo_id':
-        rewrite_wmo_id(f, out_root, dt, lat, lon)
+        return rewrite_wmo_id(f, out_root, dt, lat, lon)
     else:
-        rewrite_nc_general(f, out_root, dt, lat, lon)
+        return rewrite_nc_general(f, out_root, dt, lat, lon)
         
 
 def rewrite_nc_general(f, out_root, dt, lat, lon):

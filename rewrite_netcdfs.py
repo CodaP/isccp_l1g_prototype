@@ -12,7 +12,11 @@ LON=None
 
 def doit(item):
     dt, f = item
-    return str(make_netcdf.rewrite_nc(f, OUT, dt, LAT, LON))
+    try:
+        return str(make_netcdf.rewrite_nc(f, OUT, dt, LAT, LON))
+    except Exception as e:
+        return str(type(e))
+
 
 def rewrite():
     CACHE = Path('composite_cache')

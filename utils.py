@@ -10,6 +10,7 @@ import sys
 import os
 
 os.environ['XRIT_DECOMPRESS_PATH'] = str(Path('xrit/PublicDecompWT/xRITDecompress/xRITDecompress').absolute())
+os.environ['TMP'] = '/scratch'
 
 def get_grid(res=.25):
     """
@@ -153,12 +154,21 @@ BAND_CLASS = {
  'temp_12_00um': 'infrared',
  'temp_13_30um': 'infrared'}
 
+BAND_CENTRAL_WAV = {k:float('.'.join(k.strip('um').split('_')[-2:])) for k in ALL_BANDS}
+
 
 STATS_BANDS = {
     'temp_11_00um',
     'refl_00_65um'
 }
 STATS_FUNCS = ['mean','var','count','min','max']
+STATS_VARS = set()
+for k in STATS_BANDS:
+    for f in STATS_FUNCS:
+        name = f'{k}_{f}'
+        BAND_NICKNAME[name] = BAND_NICKNAME[k]
+        BAND_CENTRAL_WAV[name] = BAND_CENTRAL_WAV[k]
+        BAND_CLASS[name] = BAND_CLASS[k]
 
 def remap_with_stats(src_index, dst_index, v, shape, funcs=STATS_FUNCS):
     a = pd.Series(v.ravel()[src_index], index=dst_index)

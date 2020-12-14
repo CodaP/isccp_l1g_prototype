@@ -3,6 +3,7 @@ import numpy as np
 import xarray as xr
 
 from datetime import datetime, timedelta
+import json
 
 import utils
 
@@ -25,9 +26,11 @@ def default_attrs():
         if k.startswith('temp_'):
             d['units'] = 'K'
             d['standard_name'] = 'brightness_temperature'
+            d['gsics_calibration'] = json.dumps({})
         elif k.startswith('refl_'):
             d['units'] = '%'
             d['standard_name'] = 'toa_bidirectional_reflectance'
+            d['gsics_calibration'] = json.dumps({})
         attrs[k] = d
 
     attrs['wmo_id'] = {
@@ -113,7 +116,11 @@ def rewrite_nc(f, out_root, dt, lat, lon):
         return rewrite_wmo_id(f, out_root, dt, lat, lon)
     else:
         return rewrite_nc_general(f, out_root, dt, lat, lon)
-        
+
+
+def filename(k, dt):
+    #return f"{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
+    return f"ISCCP-NG_L1g_demo_A1_v1_res_0_10deg__{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
 
 def rewrite_nc_general(f, out_root, dt, lat, lon):
     ds = xr.open_dataset(f)
@@ -137,7 +144,7 @@ def rewrite_nc_general(f, out_root, dt, lat, lon):
 
     out_dir = out_root / dt.strftime('%Y%m%dT%H%M')
     out_dir.mkdir(exist_ok=True)
-    out = out_dir / f"{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
+    out = out_dir / filename(k, dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
     return out
 
@@ -169,7 +176,7 @@ def rewrite_wmo_id(f, out_root, dt, lat, lon):
 
     out_dir = out_root / dt.strftime('%Y%m%dT%H%M')
     out_dir.mkdir(exist_ok=True)
-    out = out_dir / f"wmo_id_{dt.strftime('%Y%m%dT%H%M')}.nc"
+    out = out_dir / filename('wmo_id', dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
     return out
 
@@ -204,6 +211,6 @@ def rewrite_satzen(f, out_root, dt, lat, lon):
 
     out_dir = out_root / dt.strftime('%Y%m%dT%H%M')
     out_dir.mkdir(exist_ok=True)
-    out = out_dir / f"satzen_{dt.strftime('%Y%m%dT%H%M')}.nc"
+    out = out_dir / filename('satzen',dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
     return out

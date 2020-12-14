@@ -70,6 +70,9 @@ def get_dat_files(d):
 
 def filter_fd_goes(files, start, end):
     candidates = files.loc[:end, start:]
+    if len(candidates) == 0:
+        # Empty
+        return pd.DataFrame()
     longest = candidates.groupby(['start','band']).apply(lambda x: x.sort_index().iloc[-1])
     sizes = longest.groupby('start').size()
     full = longest.loc[[sizes.index[sizes == 16][0]]]

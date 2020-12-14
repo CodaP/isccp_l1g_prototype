@@ -8,11 +8,14 @@ import satpy
 import pyresample
 import sys
 import os
+H = 6.62607015e-34 # Js
+KB = 1.380649e-23 # J/K
+C = 299792458 # m/s
 
 os.environ['XRIT_DECOMPRESS_PATH'] = str(Path('xrit/PublicDecompWT/xRITDecompress/xRITDecompress').absolute())
 os.environ['TMP'] = '/scratch'
 
-def get_grid(res=.25):
+def get_grid(res=.1):
     """
     res: Grid resolution (degree)
     """
@@ -161,7 +164,7 @@ STATS_BANDS = {
     'temp_11_00um',
     'refl_00_65um'
 }
-STATS_FUNCS = ['mean','var','count','min','max']
+STATS_FUNCS = ['mean','std','count','min','max']
 STATS_VARS = set()
 for k in STATS_BANDS:
     for f in STATS_FUNCS:
@@ -187,6 +190,59 @@ def remap_fast_mean(src_index, dst_index, v, shape):
     sums = np.bincount(dst_index, weights=np.nan_to_num(weights, nan=0.0), minlength=np.prod(shape))
     out = np.full(shape, np.nan, dtype=np.float32)
     out.ravel()[mask] = sums[mask]/counts[mask]
+    return out
+
+def remap_fast_rad_mean(src_index, dst_index, v, shape, wavelength):
+    # Convert to radiance
+    rad = bt_to_rad(v, wavelength)
+    rad_grid = remap_fast_mean(src_index, dst_index, rad, shape)
+    bt_grid = rad_to_bt(rad_grid, wavelength)
+    return bt_grid
+
+
+def bt_to_rad(bt_K, wavelength_um):
+    """
+    Used to averaging, not real rad
+    """
+    bt_K = np.asarray(bt_K)
+    rad = np.full(bt_K.shape, np.nan, dtype=np.float32)
+    mask = np.isfinite(bt_K) & (bt_K > 0)
+    freq = C/(wavelength_um*1e-6) # m/s / m
+    nom = H*freq # Js * 1/s = J
+    denom = KB*bt_K[mask] # J/K * K = J
+    # B = 1/(exp(hv/(kb T)) - 1)
+    rad[mask] = 1/(np.exp(nom/denom)-1)
+    return rad
+
+
+def rad_to_bt(rad, wavelength_um):
+    """
+    Used to averaging, not real rad
+    """
+    rad = np.asarray(rad)
+    mask = np.isfinite(rad) & (rad > 0)
+    bt = np.full(rad.shape, np.nan, dtype=np.float32)
+    freq = C/(wavelength_um*1e-6) # m/s / m
+    # B = 1/(exp(hv/(kb T)) - 1)
+    # T = hv/log(1/B + 1)/kb
+    c = H*freq/KB
+    bt[mask] = c/np.log(1/rad[mask] + 1)
+    return bt
+
+
+def remap_with_stats_rad(src_index, dst_index, v, shape, wavelength):
+    # Convert to radiance
+    rad = bt_to_rad(v, wavelength)
+    rad_grid = remap_fast_mean(src_index, dst_index, rad, shape)
+    rad_funcs = ['mean']
+    other_funcs = list(set(STATS_FUNCS) -set(rad_funcs))
+    rad_out = remap_with_stats(src_index, dst_index, rad, shape, funcs=rad_funcs)
+    for k in sorted(rad_out):
+        rad_out[k] = rad_to_bt(rad_out[k], wavelength)
+    # min(T) is the same as T(min(B(T)))
+    out = remap_with_stats(src_index, dst_index, v, shape, funcs=other_funcs)
+    for k in sorted(rad_out):
+        out[k] = rad_out[k]
     return out
 
 

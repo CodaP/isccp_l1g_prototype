@@ -12,7 +12,7 @@ import satpy
 
 import warnings
 from pathlib import Path
-from utils import spherical_angle_add, ALL_BANDS, AHI_BANDS, ABI_BANDS, MSG_BANDS, remap_fast_mean, remap_with_stats, WMO_IDS, ALL_SATS, STATS_BANDS, STATS_FUNCS
+from utils import spherical_angle_add, ALL_BANDS, AHI_BANDS, ABI_BANDS, MSG_BANDS, remap_fast_rad_mean, remap_fast_mean, remap_with_stats_rad, remap_with_stats, WMO_IDS, ALL_SATS, STATS_BANDS, STATS_FUNCS, BAND_CENTRAL_WAV
 from make_index import get_index_bands
 
 from collect_l1b import L1B_DIR
@@ -39,6 +39,7 @@ def print(*args, flush=False, **kwargs):
     orig_print(*args, flush=True, **kwargs)
 
 def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, with_stats=False, bar=None):
+    wavelength = BAND_CENTRAL_WAV[band]
     grid_shape = wmo_ids.shape
     if composite is None:
         if with_stats:
@@ -85,9 +86,17 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
         
         
     if not with_stats:
-        remap = remap_fast_mean
+        if 'temp' in band:
+            def remap(*args,**kwargs):
+                return remap_fast_rad_mean(*args,wavelength,**kwargs)
+        else:
+            remap = remap_fast_mean
     else:
-        remap = remap_with_stats
+        if 'temp' in band:
+            def remap(*args,**kwargs):
+                return remap_with_stats_rad(*args,wavelength,**kwargs)
+        else:
+            remap = remap_with_stats
         
     out = remap(src_index, dst_index, v, grid_shape[-2:])
     out_nn = remap(src_index_nn, dst_index_nn, v, grid_shape[-2:])

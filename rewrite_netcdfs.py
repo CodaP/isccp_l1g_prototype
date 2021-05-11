@@ -28,7 +28,8 @@ def rewrite():
     global LON,LAT
     LON = lon[0]
     LAT = lat[:,0]
-    for out_dir in CACHE.glob('20*'):
+    #composite_cache/2020/202001/20200101/20200101T0000/
+    for out_dir in CACHE.glob('20*/*/*/*'):
         if out_dir.is_dir():
             dt = datetime.strptime(out_dir.name, '%Y%m%dT%H%M')
             out_dir = Path(out_dir)

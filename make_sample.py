@@ -48,8 +48,9 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
                          for k in STATS_FUNCS}
         else:
             composite = xr.DataArray(np.full(grid_shape, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
-    band_dir = L1B_DIR/dt/sat/f'{band}'
-    assert band_dir.is_dir(), str(band_dir)
+    band_dir = L1B_DIR/dt.strftime('%Y')/dt.strftime('%Y%m')/dt.strftime('%Y%m%d')/dt.strftime('%Y%m%dT%H%M')/sat/f'{band}'
+    if not band_dir.is_dir():
+        raise IOError(f"Missing {band_dir}")
     index_dir = INDEX / sat / f'{index_band}'
     src_index = np.memmap(index_dir / 'src_index.dat', mode='r', dtype=np.uint32)
     dst_index = np.memmap(index_dir / 'dst_index.dat', mode='r', dtype=np.uint32)
@@ -79,10 +80,10 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
         except KeyError:
             raise IOError('Problem reading files')
         if bar is not None:
-            bar.set_description(f'Loading {sat} band {band} {dt}')
+            bar.set_description(dt.strftime(f'Loading {sat} band {band} %Y%m%dT%H%M'))
         v = scene[ds_names[0]].values
     if bar is not None:
-        bar.set_description(f'Remapping imagery {sat} {band} {dt}')
+        bar.set_description(dt.strftime(f'Remapping imagery {sat} {band} %Y%m%dT%H%M'))
         
         
     if not with_stats:
@@ -123,14 +124,13 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
 
 
 def main(dt, progress=True):
-    dt = dt.strftime('%Y%m%dT%H%M')
     wmo_ids = xr.open_dataset(COMP_CACHE / 'wmo_id.nc').wmo_id
     sample_mode = xr.open_dataset(COMP_CACHE / 'sample_mode.nc').sample_mode
     grid_shape = wmo_ids.shape
     print(grid_shape)
     ordered_bands = ['temp_11_00um', *sorted(ALL_BANDS - set(['temp_11_00um']))]
-    out_dir = COMP_CACHE / dt
-    out_dir.mkdir(exist_ok=True)
+    out_dir = COMP_CACHE / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
+    out_dir.mkdir(exist_ok=True, parents=True)
     for band in ordered_bands:
         with_stats = band in STATS_BANDS
         if with_stats:
@@ -155,7 +155,7 @@ def main(dt, progress=True):
                 wmo_id = WMO_IDS[sat]
                 index_band = get_index_bands(attrs['res'])[res]
                 tmp_root = Path(tempfile.gettempdir())
-                tmp = tmp_root / f'{sat}_{band}_{dt}'
+                tmp = tmp_root / dt.strftime(f'{sat}_{band}_%Y%m%dT%H%M')
                 tmp.mkdir()
                 try:
                     tempfile.tempdir = str(tmp)

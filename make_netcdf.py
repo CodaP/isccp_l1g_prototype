@@ -142,8 +142,8 @@ def rewrite_nc_general(f, out_root, dt, lat, lon):
     encoding = default_encoding(grid_shape)
     ds = add_time(ds, dt, encoding)
 
-    out_dir = out_root / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True)
+    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
+    out_dir.mkdir(exist_ok=True, parents=True)
     out = out_dir / filename(k, dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
     return out

@@ -96,14 +96,23 @@ def filter_fd_hrit(files, start, end=None):
     all_segments = [f'00000{i}' for i in range(1,9)]
     bands = [ 'VIS008', 'VIS006', 'IR_039', 'IR_087', 'WV_073',
         'IR_108', 'IR_097', 'IR_134', 'WV_062', 'IR_016', 'IR_120']
-    files = files.set_index('dt').loc[start]
+    files = files.set_index('dt').sort_index()
+    files = files.loc[start:end]
+    max_size = -1
+    for _,_files in files.groupby(files.index):
+        if len(_files) > max_size:
+            files = _files
+            max_size = len(_files)
     def all_or_none(x):
         segs = x.set_index('segment').reindex(all_segments)
         if segs.path.isnull().any():
             return segs.iloc[:0]
         else:
             return segs
-    full_files = files.loc[files.band.isin(bands)].groupby('band').apply(all_or_none).path
+    full_files = files.loc[files.band.isin(bands)].groupby('band').apply(all_or_none)
+    if full_files.empty:
+        return full_files
+    full_files = full_files.path
     pro = files.loc[files.segment == 'PRO'].set_index(['band','segment']).path
     epi = files.loc[files.segment == 'EPI'].set_index(['band','segment']).path
     full_files = pd.concat([full_files, pro, epi])
@@ -181,7 +190,8 @@ def _get_fd(root, fmt, get_files, filter_fd, start, end):
     files = get_files(dir)
     if files is not None and len(files) > 0:
         fd = filter_fd(files, start, end)
-        return fd
+        if len(fd) > 0:
+            return fd
     else:
         print(f'no good files in {dir}')
 
@@ -206,7 +216,7 @@ def collect_all(dt, out_root=L1B_DIR, error_file=Path('errors.txt'), copy_func=o
     
     for attrs in utils.ALL_SATS:
         sat = attrs['sat']
-        out_dir = out_root / start.strftime('%Y%m%dT%H%M') / sat
+        out_dir = out_root / start.strftime('%Y') / start.strftime('%Y%m') / start.strftime('%Y%m%d') / start.strftime('%Y%m%dT%H%M') / sat
         if out_dir.is_dir():
             #print(f'Already have {out_dir}')
             continue

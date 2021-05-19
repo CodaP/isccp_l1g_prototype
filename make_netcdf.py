@@ -75,7 +75,7 @@ def default_encoding(grid_shape):
             encoding[k] = {
                 'zlib':True,
                 'scale_factor':.25, 
-                'add_offset':50,
+                'add_offset':50.0,
                 'dtype':'i2',
                 '_FillValue':netCDF4.default_fillvals['i2'],
                 'chunksizes':(1,1,*grid_shape),
@@ -86,7 +86,7 @@ def default_encoding(grid_shape):
             encoding[k] = {
                 'zlib':True,
                 'scale_factor':.25,
-                'add_offset':250,
+                'add_offset':250.0,
                 'dtype':'i2',
                 '_FillValue':netCDF4.default_fillvals['i2'],
                 'chunksizes':(1,1,*grid_shape),
@@ -174,7 +174,7 @@ def rewrite_wmo_id(f, out_root, dt, lat, lon):
                 'complevel':1}
     ds = add_time(ds, dt, encoding)
 
-    out_dir = out_root / dt.strftime('%Y%m%dT%H%M')
+    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
     out_dir.mkdir(exist_ok=True)
     out = out_dir / filename('wmo_id', dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
@@ -209,7 +209,7 @@ def rewrite_satzen(f, out_root, dt, lat, lon):
                 }
     ds = add_time(ds, dt, encoding)
 
-    out_dir = out_root / dt.strftime('%Y%m%dT%H%M')
+    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
     out_dir.mkdir(exist_ok=True)
     out = out_dir / filename('satzen',dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})

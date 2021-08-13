@@ -38,26 +38,25 @@ orig_print = print
 def print(*args, flush=False, **kwargs):
     orig_print(*args, flush=True, **kwargs)
 
-def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, with_stats=False, bar=None):
-    wavelength = BAND_CENTRAL_WAV[band]
-    grid_shape = wmo_ids.shape
-    if composite is None:
-        if with_stats:
-            composite = {k:
-                         xr.DataArray(np.full(grid_shape, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
-                         for k in STATS_FUNCS}
-        else:
-            composite = xr.DataArray(np.full(grid_shape, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
-    band_dir = L1B_DIR/dt.strftime('%Y')/dt.strftime('%Y%m')/dt.strftime('%Y%m%d')/dt.strftime('%Y%m%dT%H%M')/sat/f'{band}'
-    if not band_dir.is_dir():
-        raise IOError(f"Missing {band_dir}")
+
+def open_index(INDEX, sat, index_band):
     index_dir = INDEX / sat / f'{index_band}'
+    assert index_dir.is_dir()
     src_index = np.memmap(index_dir / 'src_index.dat', mode='r', dtype=np.uint32)
     dst_index = np.memmap(index_dir / 'dst_index.dat', mode='r', dtype=np.uint32)
     src_index_nn = np.memmap(index_dir / 'src_index_nn.dat', mode='r', dtype=np.uint32)
     dst_index_nn = np.memmap(index_dir / 'dst_index_nn.dat', mode='r', dtype=np.uint32)
-    assert index_dir.is_dir()
-    files = list(band_dir.glob('*'))
+    return src_index, dst_index, src_index_nn, dst_index_nn
+
+
+def band_dir_path(L1B_DIR, dt, sat, band):
+    band_dir = L1B_DIR/dt.strftime('%Y')/dt.strftime('%Y%m')/dt.strftime('%Y%m%d')/dt.strftime('%Y%m%dT%H%M')/sat/f'{band}'
+    if not band_dir.is_dir():
+        raise IOError(f"Missing {band_dir}")
+    return band_dir
+
+
+def read_scene(files, reader, bar=None):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         old_stdout = sys.stdout
@@ -70,18 +69,37 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
                     scene = satpy.Scene(files, reader=reader)
                     ds_names = scene.available_dataset_names()
                     scene.load(ds_names)
-        except Exception:
+        except Exception as e:
             raise IOError('Problem reading files')
         finally:
             sys.stdout = old_stdout
             sys.stderr = old_stderr
         try:
             area = scene[ds_names[0]].area
-        except KeyError:
+        except KeyError as e:
+            print(e.args)
             raise IOError('Problem reading files')
         if bar is not None:
             bar.set_description(dt.strftime(f'Loading {sat} band {band} %Y%m%dT%H%M'))
-        v = scene[ds_names[0]].values
+        v = scene[ds_names[0]]
+        return v, area
+
+
+def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, with_stats=False, bar=None):
+    wavelength = BAND_CENTRAL_WAV[band]
+    grid_shape = wmo_ids.shape
+    if composite is None:
+        if with_stats:
+            composite = {k:
+                         xr.DataArray(np.full(grid_shape, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
+                         for k in STATS_FUNCS}
+        else:
+            composite = xr.DataArray(np.full(grid_shape, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
+    band_dir_path(L1B_DIR, dt, sat, band)
+    src_index, dst_index, src_index_nn, dst_index_nn = open_index(INDEX, sat, index_band)
+    files = list(band_dir.glob('*'))
+    v, area = read_scene(files, reader)
+    v = v.values
     if bar is not None:
         bar.set_description(dt.strftime(f'Remapping imagery {sat} {band} %Y%m%dT%H%M'))
         

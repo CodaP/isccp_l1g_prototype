@@ -35,8 +35,11 @@ def rewrite():
             out_dir = Path(out_dir)
             for f in out_dir.glob('*.nc'):
                 tasks.append((dt, f))
+                if 'pixel_time' in f.name:
+                    tasks.append((dt, f))
             tasks.append((dt, COMPOSITE_CACHE / 'wmo_id.nc'))
             tasks.append((dt, COMPOSITE_CACHE / 'satzen.nc'))
+            tasks.append((dt, COMPOSITE_CACHE / 'satazi.nc'))
             tasks.append((dt, COMPOSITE_CACHE / 'sample_mode.nc'))
     tasks = sorted(tasks)
     

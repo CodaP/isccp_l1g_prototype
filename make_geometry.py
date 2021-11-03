@@ -14,6 +14,8 @@ import warnings
 
 SATZEN_CACHE = Path('satzen_cache')
 SATZEN_CACHE.mkdir(exist_ok=True)
+SATAZI_CACHE = Path('satazi_cache')
+SATAZI_CACHE.mkdir(exist_ok=True)
 
 def get_satzen(area):
     height, width = area.shape
@@ -33,8 +35,45 @@ def get_satzen(area):
     return sat_zen.astype(np.float32)
 
 
-ENCODING = {
-    'satzen':{
+def get_satazi(area):
+    lon, lat = area.get_lonlats()
+    proj = area.to_cartopy_crs()
+    azi = sensor_azimuth(proj.proj4_params['lon_0'], 0, lon, lat)
+    azi = azi.astype(np.float32)
+    return azi
+
+
+def sensor_azimuth(satlon,satlat,pixlon,pixlat):
+    xlon = np.deg2rad(pixlon - satlon)
+    xlat = np.deg2rad(pixlat - satlat)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        beta = np.arccos( np.cos(xlat) * np.cos(xlon) )
+        sine_beta = np.sin(beta)
+        sensor_azimuth = np.sin(xlon) / sine_beta
+        sensor_azimuth = sensor_azimuth.clip(-1,1)
+        sensor_azimuth = np.rad2deg(np.arcsin(sensor_azimuth))
+    sensor_azimuth[np.isclose(sine_beta, 0)] = 0.0
+
+    sensor_azimuth[xlat < 0.0] = 180.0 - sensor_azimuth[xlat < 0.0]
+
+    sensor_azimuth[sensor_azimuth < 0.0] += 360.0
+    
+    sensor_azimuth = sensor_azimuth - 180.0
+    return sensor_azimuth
+
+
+SATZEN_ENCODING = {
+    'satellite_zenith':{
+        'zlib':True,
+        'scale_factor':.1,
+        'dtype':'i2',
+        '_FillValue':netCDF4.default_fillvals['i2']
+    }
+}
+
+SATAZI_ENCODING = {
+    'satellite_azimuth':{
         'zlib':True,
         'scale_factor':.1,
         'dtype':'i2',
@@ -48,18 +87,23 @@ def make_geometry(dt_dir):
         for attrs in bar:
             sat = attrs['sat']
             reader = attrs['reader']
+            
             files = list((dt_dir / sat / f'temp_11_00um').glob('*'))
             area = get_area(files, reader=reader)
+            bar.set_description(f'{sat} satzen')
             sat_zen = get_satzen(area)
-
+            bar.set_description(f'{sat} satazi')
+            sat_azi = get_satazi(area)
+            
             ds = xr.Dataset()
             ds['satzen'] = ['y','x'], sat_zen
             out = SATZEN_CACHE / f'{sat}_satzen.nc'
+            bar.set_description(f'saving {out}')
             if out.is_file():
                 out.unlink()
-            ds.to_netcdf(out, encoding=ENCODING)
+            ds.to_netcdf(out, encoding=SATZEN_ENCODING)
         
 
 if __name__ == '__main__':
-    make_geometry(Path('l1b/20201001T0000'))
+    make_geometry(Path('l1b/2020/202001/20200101/20200101T0000/'))
 

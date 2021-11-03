@@ -38,9 +38,15 @@ def default_attrs():
         'satellite_names':';'.join(f'{v}={utils.SAT_NAMES[k]}' for k,v in utils.WMO_IDS.items())
     }
 
-    attrs['satzen'] = {
+    attrs['satellite_zenith'] = {
         'long_name':'satellite zenith angle',
         'standard_name':'satellite zenith angle',
+        'units':'degrees'
+    }
+
+    attrs['satellite_azimuth'] = {
+        'long_name':'satellite azimuth angle',
+        'standard_name':'satellite azimuth angle',
         'units':'degrees'
     }
 
@@ -49,7 +55,13 @@ def default_attrs():
         'flag_values':[1,2],
         'flag_meanings':"nearest-neighbor constant-footprint-area"
     }
+    
+    attrs['pixel_time'] = {
+        'long_name':'approximate scan time',
+        'standard_name':'time',
+    }
     return attrs
+
 
 def add_time(ds, dt, encoding):
     start_dt = dt
@@ -63,6 +75,7 @@ def add_time(ds, dt, encoding):
     encoding['start_time'] = {'units':'seconds since 1970-01-01'}
     encoding['end_time'] = {'units':'seconds since 1970-01-01'}
     return ds
+
 
 def default_encoding(grid_shape):
     encoding = {}
@@ -112,6 +125,10 @@ def rewrite_nc(f, out_root, dt, lat, lon):
     ds.close()
     if k == 'satzen':
         return rewrite_satzen(f, out_root, dt, lat, lon)
+    elif k == 'satazi':
+        return rewrite_satazi(f, out_root, dt, lat, lon)
+    elif k == 'pixel_time':
+        return rewrite_pixel_time(f, out_root, dt, lat, lon)
     elif k == 'wmo_id':
         return rewrite_wmo_id(f, out_root, dt, lat, lon)
     else:
@@ -122,11 +139,8 @@ def filename(k, dt):
     #return f"{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
     return f"ISCCP-NG_L1g_demo_A1_v1_res_0_10deg__{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
 
-def rewrite_nc_general(f, out_root, dt, lat, lon):
-    ds = xr.open_dataset(f)
-    k = next(iter(ds.data_vars))
-    grid_shape = ds[k].shape[-2:]
 
+def set_latlon(ds, lat, lon):
     ds['latitude'] = ['latitude'], lat
     ds['longitude'] = ['longitude'], lon
 
@@ -135,6 +149,14 @@ def rewrite_nc_general(f, out_root, dt, lat, lon):
 
     ds['latitude'].attrs['standard_name'] = 'latitude'
     ds['latitude'].attrs['units']='degree_north'
+
+
+def rewrite_nc_general(f, out_root, dt, lat, lon):
+    ds = xr.open_dataset(f)
+    k = next(iter(ds.data_vars))
+    grid_shape = ds[k].shape[-2:]
+
+    set_latlon(ds,lat,lon)
 
     attrs = default_attrs()
     ds[k].attrs.update(attrs.get(k,{}))
@@ -153,14 +175,7 @@ def rewrite_wmo_id(f, out_root, dt, lat, lon):
     ds = xr.open_dataset(f)
     grid_shape = ds['wmo_id'].shape[-2:]
 
-    ds['latitude'] = ['latitude'], lat
-    ds['longitude'] = ['longitude'], lon
-
-    ds['longitude'].attrs['standard_name'] = 'longitude'
-    ds['longitude'].attrs['units']='degree_east'
-
-    ds['latitude'].attrs['standard_name'] = 'latitude'
-    ds['latitude'].attrs['units']='degree_north'
+    set_latlon(ds,lat,lon)
 
     attrs = default_attrs()
     ds['wmo_id'].attrs.update(attrs.get('wmo_id',{}))
@@ -181,24 +196,17 @@ def rewrite_wmo_id(f, out_root, dt, lat, lon):
     return out
 
 
-def rewrite_satzen(f, out_root, dt, lat, lon):
+def rewrite_satazi(f, out_root, dt, lat, lon):
     ds = xr.open_dataset(f)
-    grid_shape = ds['satzen'].shape[-2:]
+    grid_shape = ds['satellite_azimuth'].shape[-2:]
 
-    ds['latitude'] = ['latitude'], lat
-    ds['longitude'] = ['longitude'], lon
-
-    ds['longitude'].attrs['standard_name'] = 'longitude'
-    ds['longitude'].attrs['units']='degree_east'
-
-    ds['latitude'].attrs['standard_name'] = 'latitude'
-    ds['latitude'].attrs['units']='degree_north'
+    set_latlon(ds,lat,lon)
 
     attrs = default_attrs()
-    ds['satzen'].attrs.update(attrs.get('satzen',{}))
+    ds['satellite_azimuth'].attrs.update(attrs.get('satellite_azimuth',{}))
 
     encoding = default_encoding(grid_shape)
-    encoding['satzen'] = {
+    encoding['satellite_azimuth'] = {
                 'zlib':True,
                 'scale_factor':.125, 
                 'dtype':'i2',
@@ -211,6 +219,64 @@ def rewrite_satzen(f, out_root, dt, lat, lon):
 
     out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
     out_dir.mkdir(exist_ok=True)
-    out = out_dir / filename('satzen',dt)
+    out = out_dir / filename('satellite_azimuth',dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
     return out
+
+
+def rewrite_satzen(f, out_root, dt, lat, lon):
+    ds = xr.open_dataset(f)
+    ds = ds.rename(satzen='satellite_zenith')
+    grid_shape = ds['satellite_zenith'].shape[-2:]
+
+    set_latlon(ds,lat,lon)
+
+    attrs = default_attrs()
+    ds['satellite_zenith'].attrs.update(attrs.get('satellite_zenith',{}))
+
+    encoding = default_encoding(grid_shape)
+    encoding['satellite_zenith'] = {
+                'zlib':True,
+                'scale_factor':.125, 
+                'dtype':'i2',
+                '_FillValue':netCDF4.default_fillvals['i2'],
+                'chunksizes':(1,1,*grid_shape),
+                'shuffle':False,
+                'complevel':1
+                }
+    ds = add_time(ds, dt, encoding)
+
+    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
+    out_dir.mkdir(exist_ok=True)
+    out = out_dir / filename('satellite_zenith',dt)
+    ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
+    return out
+
+
+def rewrite_pixel_time(f, out_root, dt, lat, lon):
+    ds = xr.open_dataset(f)
+    grid_shape = ds['pixel_time'].shape[-2:]
+
+    set_latlon(ds,lat,lon)
+
+    attrs = default_attrs()
+    ds['pixel_time'].attrs.update(attrs.get('pixel_time',{}))
+    ds['pixel_time'].attrs['units'] = dt.strftime('seconds since %Y-%m-%d')
+
+    encoding = default_encoding(grid_shape)
+    encoding['pixel_time'] = {
+                'zlib':True,
+                'dtype':'i2',
+                '_FillValue':netCDF4.default_fillvals['i2'],
+                'chunksizes':(1,1,*grid_shape),
+                'shuffle':False,
+                'complevel':1
+                }
+    ds = add_time(ds, dt, encoding)
+
+    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
+    out_dir.mkdir(exist_ok=True)
+    out = out_dir / filename('pixel_time',dt)
+    ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
+    return out
+

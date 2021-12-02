@@ -13,4 +13,5 @@ meteosat8/
 notebooks/.ipynb_checkpoints/
 satzen_cache/
 xrit/
-
+.ipynb_checkpoints/
+composite_cache*

@@ -38,13 +38,13 @@ def default_attrs():
         'satellite_names':';'.join(f'{v}={utils.SAT_NAMES[k]}' for k,v in utils.WMO_IDS.items())
     }
 
-    attrs['satellite_zenith'] = {
+    attrs['satellite_zenith_angle'] = {
         'long_name':'satellite zenith angle',
         'standard_name':'satellite zenith angle',
         'units':'degrees'
     }
 
-    attrs['satellite_azimuth'] = {
+    attrs['satellite_azimuth_angle'] = {
         'long_name':'satellite azimuth angle',
         'standard_name':'satellite azimuth angle',
         'units':'degrees'
@@ -137,7 +137,7 @@ def rewrite_nc(f, out_root, dt, lat, lon):
 
 def filename(k, dt):
     #return f"{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
-    return f"ISCCP-NG_L1g_demo_A1_v1_res_0_10deg__{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
+    return f"ISCCP-NG_L1g_demo_A1_v1_res_0_05deg__{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
 
 
 def set_latlon(ds, lat, lon):
@@ -152,8 +152,14 @@ def set_latlon(ds, lat, lon):
 
 
 def rewrite_nc_general(f, out_root, dt, lat, lon):
+    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
+    out_dir.mkdir(exist_ok=True, parents=True)
+
     ds = xr.open_dataset(f)
     k = next(iter(ds.data_vars))
+    out = out_dir / filename(k, dt)
+    if out.exists():
+        return out
     grid_shape = ds[k].shape[-2:]
 
     set_latlon(ds,lat,lon)
@@ -164,14 +170,17 @@ def rewrite_nc_general(f, out_root, dt, lat, lon):
     encoding = default_encoding(grid_shape)
     ds = add_time(ds, dt, encoding)
 
-    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True, parents=True)
-    out = out_dir / filename(k, dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
     return out
 
 
 def rewrite_wmo_id(f, out_root, dt, lat, lon):
+    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
+    out_dir.mkdir(exist_ok=True)
+    out = out_dir / filename('wmo_id', dt)
+    if out.exists():
+        return out
+
     ds = xr.open_dataset(f)
     grid_shape = ds['wmo_id'].shape[-2:]
 
@@ -189,24 +198,27 @@ def rewrite_wmo_id(f, out_root, dt, lat, lon):
                 'complevel':1}
     ds = add_time(ds, dt, encoding)
 
-    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True)
-    out = out_dir / filename('wmo_id', dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
     return out
 
 
 def rewrite_satazi(f, out_root, dt, lat, lon):
+    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
+    out_dir.mkdir(exist_ok=True)
+    out = out_dir / filename('satellite_azimuth_angle',dt)
+    if out.exists():
+        return out
+
     ds = xr.open_dataset(f)
-    grid_shape = ds['satellite_azimuth'].shape[-2:]
+    grid_shape = ds['satellite_azimuth_angle'].shape[-2:]
 
     set_latlon(ds,lat,lon)
 
     attrs = default_attrs()
-    ds['satellite_azimuth'].attrs.update(attrs.get('satellite_azimuth',{}))
+    ds['satellite_azimuth_angle'].attrs.update(attrs.get('satellite_azimuth_angle',{}))
 
     encoding = default_encoding(grid_shape)
-    encoding['satellite_azimuth'] = {
+    encoding['satellite_azimuth_angle'] = {
                 'zlib':True,
                 'scale_factor':.125, 
                 'dtype':'i2',
@@ -217,25 +229,27 @@ def rewrite_satazi(f, out_root, dt, lat, lon):
                 }
     ds = add_time(ds, dt, encoding)
 
-    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True)
-    out = out_dir / filename('satellite_azimuth',dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
     return out
 
 
 def rewrite_satzen(f, out_root, dt, lat, lon):
+    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
+    out_dir.mkdir(exist_ok=True)
+    out = out_dir / filename('satellite_zenith_angle',dt)
+    if out.exists():
+        return out
+
     ds = xr.open_dataset(f)
-    ds = ds.rename(satzen='satellite_zenith')
-    grid_shape = ds['satellite_zenith'].shape[-2:]
+    grid_shape = ds['satellite_zenith_angle'].shape[-2:]
 
     set_latlon(ds,lat,lon)
 
     attrs = default_attrs()
-    ds['satellite_zenith'].attrs.update(attrs.get('satellite_zenith',{}))
+    ds['satellite_zenith_angle'].attrs.update(attrs.get('satellite_zenith_angle',{}))
 
     encoding = default_encoding(grid_shape)
-    encoding['satellite_zenith'] = {
+    encoding['satellite_zenith_angle'] = {
                 'zlib':True,
                 'scale_factor':.125, 
                 'dtype':'i2',
@@ -246,14 +260,17 @@ def rewrite_satzen(f, out_root, dt, lat, lon):
                 }
     ds = add_time(ds, dt, encoding)
 
-    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True)
-    out = out_dir / filename('satellite_zenith',dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
     return out
 
 
 def rewrite_pixel_time(f, out_root, dt, lat, lon):
+    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
+    out_dir.mkdir(exist_ok=True)
+    out = out_dir / filename('pixel_time',dt)
+    if out.exists():
+        return out
+
     ds = xr.open_dataset(f)
     grid_shape = ds['pixel_time'].shape[-2:]
 
@@ -274,9 +291,6 @@ def rewrite_pixel_time(f, out_root, dt, lat, lon):
                 }
     ds = add_time(ds, dt, encoding)
 
-    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True)
-    out = out_dir / filename('pixel_time',dt)
     ds.to_netcdf(out, encoding={k:v for k,v in encoding.items() if k in ds})
     return out
 

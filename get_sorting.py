@@ -30,11 +30,11 @@ def get_sorting(grid_shape):
             src_index_nn = np.memmap(index_dir / 'src_index_nn.dat', mode='r', dtype=np.uint32)
             dst_index_nn = np.memmap(index_dir / 'dst_index_nn.dat', mode='r', dtype=np.uint32)
             satzen = xr.open_dataset(SATZEN_CACHE / f'{sat}_satzen.nc')
-            nn_satzen = remap_fast_mean(src_index_nn, dst_index_nn, satzen.satzen.values, grid_shape)
+            nn_satzen = remap_fast_mean(src_index_nn, dst_index_nn, satzen.satellite_zenith.values, grid_shape)
             satzens.values[i,...] = nn_satzen
             wmo_ids.values[i,np.isfinite(nn_satzen)] = wmo_id
             sample_mode.values[i, np.isfinite(nn_satzen)] = 1
-            ellip_satzen = remap_fast_mean(src_index, dst_index, satzen.satzen.values, grid_shape)
+            ellip_satzen = remap_fast_mean(src_index, dst_index, satzen.satellite_zenith.values, grid_shape)
             mask = np.isfinite(ellip_satzen) & (ellip_satzen < max_satzen)
             satzens.values[i,mask] = ellip_satzen[mask]
             wmo_ids.values[i,mask] = wmo_id

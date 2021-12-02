@@ -9,6 +9,7 @@ from pathlib import Path
 import warnings
 from tqdm import tqdm
 import subprocess
+from collect_l1b import band_dir_path
 
 
 def get_index_bands(res):
@@ -59,7 +60,7 @@ def get_index_fast(area, pc, radius=2e3, nprocs=8):
     grid_coords = pc.get_cartesian_coords()
     grid_coords_pad = np.pad(grid_coords, ((0,0),(0,0),(0,1))).astype(np.float32)
     grid_coords_pad.astype(np.float32).tofile('coord_descent/grid_coords.dat')
-    subprocess.run(['./main',str(rows),str(cols), str(grid_rows),str(grid_cols)], cwd='coord_descent', capture_output=False)
+    subprocess.run(['./main',str(rows),str(cols), str(grid_rows),str(grid_cols), f'{radius:.0f}'], cwd='coord_descent', capture_output=False)
     sat_idx = np.memmap('coord_descent/src_index.dat', mode='r', dtype=np.uint32)
     grid_idx = np.memmap('coord_descent/dst_index.dat', mode='r', dtype=np.uint32)
     #s = pd.Series(sat_idx, index=grid_idx)
@@ -120,7 +121,7 @@ def main(dt, r_sample=2):
         for sat,band,res,r_footprint in bar:
             prefix = f'{sat} {band}:'
             bar.prefix = prefix
-            input_dir = Path(dt.strftime('l1b/%Y%m%dT%H%M')) / sat / band
+            input_dir = band_dir_path(dt, sat, band)
             assert input_dir.exists(), str(input_dir)
             input_files = list(input_dir.glob('*'))
             output_dir = Path('index') / sat / band

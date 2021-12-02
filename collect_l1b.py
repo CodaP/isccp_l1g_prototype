@@ -22,6 +22,12 @@ M11_ROOT = Path('/arcdata/nongoes/meteosat/meteosat11/')
 
 ROOTS = {'g16':G16_ROOT, 'g17':G17_ROOT, 'h8':H8_ROOT, 'm8':M8_ROOT, 'm11':M11_ROOT}
 
+def band_dir_path(dt, sat, band, l1b_dir=L1B_DIR):
+    band_dir = l1b_dir/dt.strftime('%Y')/dt.strftime('%Y%m')/dt.strftime('%Y%m%d')/dt.strftime('%Y%m%dT%H%M')/sat/f'{band}'
+    if not band_dir.is_dir():
+        raise IOError(f"Missing {band_dir}")
+    return band_dir
+
 def parse_or(fname):
     _,band,sat,start,end,create = fname.split('.')[0].split('_')
     start = datetime.strptime(start[:-1], 's%Y%j%H%M%S')
@@ -75,8 +81,11 @@ def filter_fd_goes(files, start, end):
         return pd.DataFrame()
     longest = candidates.groupby(['start','band']).apply(lambda x: x.sort_index().iloc[-1])
     sizes = longest.groupby('start').size()
-    full = longest.loc[[sizes.index[sizes == 16][0]]]
-    return full
+    if (sizes == 16).any():
+        full = longest.loc[[sizes.index[sizes == 16][0]]]
+        return full
+    else:
+        return []
 
 def filter_fd_him(files, start, end=None):
     all_segments = [f'S{i:02}10' for i in range(1,11)]

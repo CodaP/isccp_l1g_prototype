@@ -13,6 +13,7 @@ import satpy
 import warnings
 from pathlib import Path
 from utils import spherical_angle_add, ALL_BANDS, AHI_BANDS, ABI_BANDS, MSG_BANDS, remap_fast_rad_mean, remap_fast_mean, remap_with_stats_rad, remap_with_stats, WMO_IDS, ALL_SATS, STATS_BANDS, STATS_FUNCS, BAND_CENTRAL_WAV
+WMO_ID = WMO_IDS
 from make_index import get_index_bands
 
 from collect_l1b import L1B_DIR
@@ -20,6 +21,8 @@ import time
 import tempfile
 import os
 import shutil
+
+import sys
 
 COMP_CACHE = Path('composite_cache')
 COMP_CACHE.mkdir(exist_ok=True)
@@ -33,6 +36,11 @@ ENCODING = {
     'scale_factor':.01,
     'add_offset':50
 }
+
+WMO_IDS = xr.open_dataset(COMP_CACHE / 'wmo_id.nc').wmo_id
+SAMPLE_MODE = xr.open_dataset(COMP_CACHE / 'sample_mode.nc').sample_mode
+GRID_SHAPE = WMO_IDS.shape
+print(GRID_SHAPE)
 
 orig_print = print
 def print(*args, flush=False, **kwargs):
@@ -77,7 +85,7 @@ def read_scene(files, reader, bar=None):
         try:
             area = scene[ds_names[0]].area
         except KeyError as e:
-            print(e.args)
+            print('Error', e.args)
             raise IOError('Problem reading files')
         if bar is not None:
             bar.set_description(dt.strftime(f'Loading {sat} band {band} %Y%m%dT%H%M'))
@@ -87,15 +95,14 @@ def read_scene(files, reader, bar=None):
 
 def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, with_stats=False, bar=None):
     wavelength = BAND_CENTRAL_WAV[band]
-    grid_shape = wmo_ids.shape
     if composite is None:
         if with_stats:
             composite = {k:
-                         xr.DataArray(np.full(grid_shape, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
+                         xr.DataArray(np.full(GRID_SHAPE, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
                          for k in STATS_FUNCS}
         else:
-            composite = xr.DataArray(np.full(grid_shape, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
-    band_dir_path(L1B_DIR, dt, sat, band)
+            composite = xr.DataArray(np.full(GRID_SHAPE, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
+    band_dir = band_dir_path(L1B_DIR, dt, sat, band)
     src_index, dst_index, src_index_nn, dst_index_nn = open_index(INDEX, sat, index_band)
     files = list(band_dir.glob('*'))
     v, area = read_scene(files, reader)
@@ -117,9 +124,9 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
         else:
             remap = remap_with_stats
         
-    out = remap(src_index, dst_index, v, grid_shape[-2:])
-    out_nn = remap(src_index_nn, dst_index_nn, v, grid_shape[-2:])
-    scene.unload()
+    out = remap(src_index, dst_index, v, GRID_SHAPE[-2:])
+    out_nn = remap(src_index_nn, dst_index_nn, v, GRID_SHAPE[-2:])
+    #scene.unload()
     
     def do_composite(composite, out_nn, out, do_nn=True):
         if bar is not None:
@@ -142,10 +149,6 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
 
 
 def main(dt, progress=True):
-    wmo_ids = xr.open_dataset(COMP_CACHE / 'wmo_id.nc').wmo_id
-    sample_mode = xr.open_dataset(COMP_CACHE / 'sample_mode.nc').sample_mode
-    grid_shape = wmo_ids.shape
-    print(grid_shape)
     ordered_bands = ['temp_11_00um', *sorted(ALL_BANDS - set(['temp_11_00um']))]
     out_dir = COMP_CACHE / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
     out_dir.mkdir(exist_ok=True, parents=True)
@@ -159,7 +162,7 @@ def main(dt, progress=True):
         else:
             out_nc = out_dir / f'{band}.nc'
             if out_nc.exists():
-                #print(f'Already have {out_nc}')
+                print(f'Already have {out_nc}')
                 continue
         start = time.time()
         def run(it,bar=None):
@@ -170,7 +173,7 @@ def main(dt, progress=True):
                 if band not in attrs['bands']:
                     continue
                 res = attrs['res'][band]
-                wmo_id = WMO_IDS[sat]
+                wmo_id = WMO_ID[sat]
                 index_band = get_index_bands(attrs['res'])[res]
                 tmp_root = Path(tempfile.gettempdir())
                 tmp = tmp_root / dt.strftime(f'{sat}_{band}_%Y%m%dT%H%M')
@@ -178,7 +181,7 @@ def main(dt, progress=True):
                 try:
                     tempfile.tempdir = str(tmp)
                     os.environ['TMP'] = str(tmp)
-                    composite = composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, with_stats=with_stats, bar=bar)
+                    composite = composite_band(composite, band, index_band, sat, dt, reader, wmo_id, WMO_IDS, SAMPLE_MODE, with_stats=with_stats, bar=bar)
                 except IOError:
                     print(f'Error reading {sat}')
                 finally:
@@ -225,6 +228,7 @@ if __name__ == '__main__':
     if args.end is not None:
         end = pd.to_datetime(args.end)
         for dt in pd.date_range(dt, end, freq='30min'):
+            print(dt)
             try:
                 main(dt)
             except Exception as e:

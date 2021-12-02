@@ -8,14 +8,25 @@ import satpy
 import pyresample
 import sys
 import os
+import tempfile
+import socket
+
+if socket.gethostname() !='solar3.ssec.wisc.edu' and  tempfile.gettempdir().startswith('/tmp'):
+    print('tempdir is currently /tmp, this crashes nodes')
+    print(os.environ.get('TMPDIR'), os.environ.get('TEMP'), os.environ.get('TMP'))
+    print('Exiting')
+    sys.exit(1)
+    
 H = 6.62607015e-34 # Js
 KB = 1.380649e-23 # J/K
 C = 299792458 # m/s
 
 os.environ['XRIT_DECOMPRESS_PATH'] = str(Path('xrit/PublicDecompWT/xRITDecompress/xRITDecompress').absolute())
 os.environ['TMP'] = '/scratch'
+os.environ['TMPDIR'] = '/scratch'
+os.environ['TEMP'] = '/scratch'
 
-def get_grid(res=.1):
+def get_grid(res=.05):
     """
     res: Grid resolution (degree)
     """

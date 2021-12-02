@@ -96,12 +96,20 @@ def make_geometry(dt_dir):
             sat_azi = get_satazi(area)
             
             ds = xr.Dataset()
-            ds['satzen'] = ['y','x'], sat_zen
+            ds['satellite_zenith'] = ['y','x'], sat_zen
             out = SATZEN_CACHE / f'{sat}_satzen.nc'
             bar.set_description(f'saving {out}')
             if out.is_file():
                 out.unlink()
             ds.to_netcdf(out, encoding=SATZEN_ENCODING)
+
+            ds = xr.Dataset()
+            ds['satellite_azimuth'] = ['y','x'], sat_azi
+            out = SATAZI_CACHE / f'{sat}_satazi.nc'
+            bar.set_description(f'saving {out}')
+            if out.is_file():
+                out.unlink()
+            ds.to_netcdf(out, encoding=SATAZI_ENCODING)
         
 
 if __name__ == '__main__':

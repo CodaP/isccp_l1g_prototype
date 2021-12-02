@@ -18,7 +18,8 @@ def doit(item):
         return str(type(e))
 
 
-def rewrite():
+
+def main(task_id, num_tasks):
     CACHE = Path('composite_cache')
     tasks = []
     grid = utils.get_grid()
@@ -29,31 +30,35 @@ def rewrite():
     LON = lon[0]
     LAT = lat[:,0]
     #composite_cache/2020/202001/20200101/20200101T0000/
-    for out_dir in CACHE.glob('20*/*/*/*'):
+    with open('date_list.txt') as fp:
+        dts = [datetime.strptime(d.strip(),'%Y%m%dT%H%M') for d in fp]
+
+    dts = dts[task_id::num_tasks]
+    print(len(dts), 'dts')
+    for i,dt in enumerate(dts,1):
+        out_dir = CACHE / dt.strftime('%Y/%Y%m/%Y%m%d/%Y%m%dT%H%M')
         if out_dir.is_dir():
-            dt = datetime.strptime(out_dir.name, '%Y%m%dT%H%M')
-            out_dir = Path(out_dir)
-            for f in out_dir.glob('*.nc'):
-                tasks.append((dt, f))
-                if 'pixel_time' in f.name:
-                    tasks.append((dt, f))
-            tasks.append((dt, COMPOSITE_CACHE / 'wmo_id.nc'))
+            #for f in out_dir.glob('*.nc'):
+                #tasks.append((dt, f))
+            #tasks.append((dt, COMPOSITE_CACHE / 'wmo_id.nc'))
             tasks.append((dt, COMPOSITE_CACHE / 'satzen.nc'))
             tasks.append((dt, COMPOSITE_CACHE / 'satazi.nc'))
-            tasks.append((dt, COMPOSITE_CACHE / 'sample_mode.nc'))
+            #tasks.append((dt, COMPOSITE_CACHE / 'sample_mode.nc'))
     tasks = sorted(tasks)
+
+    print(len(tasks), 'tasks')
     
-    with Pool(12) as pool:
-        with tqdm(pool.imap(doit, tasks), total=len(tasks)) as bar:
-            for ret in bar:
-                bar.set_description(ret)
+    with tqdm(tasks) as bar:
+        for task in bar:
+            ret = doit(task)
+            print(f'{task[0]} {task[1].name}', flush=True)
 
 
 if __name__ == '__main__':
-    #import argparse
-    #parser = argparse.ArgumentParser()
-    #parser.add_argument('cache_dir')
-    #args = parser.parse_args()
-    #rewrite(args.cache_dir)
-    rewrite()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('task_id',type=int)
+    parser.add_argument('max_task_id',type=int)
+    args = parser.parse_args()
+    main(args.task_id, args.max_task_id+1)
 

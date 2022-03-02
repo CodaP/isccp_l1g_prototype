@@ -38,12 +38,12 @@ def main(task_id, num_tasks):
     for i,dt in enumerate(dts,1):
         out_dir = CACHE / dt.strftime('%Y/%Y%m/%Y%m%d/%Y%m%dT%H%M')
         if out_dir.is_dir():
-            #for f in out_dir.glob('*.nc'):
-                #tasks.append((dt, f))
-            #tasks.append((dt, COMPOSITE_CACHE / 'wmo_id.nc'))
+            for f in out_dir.glob('*.nc'):
+                tasks.append((dt, f))
+            tasks.append((dt, COMPOSITE_CACHE / 'wmo_id.nc'))
             tasks.append((dt, COMPOSITE_CACHE / 'satzen.nc'))
             tasks.append((dt, COMPOSITE_CACHE / 'satazi.nc'))
-            #tasks.append((dt, COMPOSITE_CACHE / 'sample_mode.nc'))
+            tasks.append((dt, COMPOSITE_CACHE / 'sample_mode.nc'))
     tasks = sorted(tasks)
 
     print(len(tasks), 'tasks')

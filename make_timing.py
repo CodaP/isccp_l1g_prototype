@@ -9,12 +9,12 @@ from tqdm import tqdm
 from datetime import datetime, timedelta
 from utils import ALL_SATS, remap_fast_mean
 from make_index import get_index_bands
-from make_sample import open_index, band_dir_path, read_scene
+from make_sample import open_index, read_scene, comp_cache_dir
+from collect_l1b import band_dir_path, L1B_DIR
 import satpy
 
 COMP_CACHE = Path('composite_cache/')
 INDEX = Path('index')
-L1B_DIR = Path('l1b')
 ABI_SCAN_DIR = Path('ancil/abi_scan_schedule/')
 
 WMO_IDS = xr.open_dataset(COMP_CACHE / 'wmo_id.nc').wmo_id
@@ -29,10 +29,10 @@ def saveit(composite, out):
     encoding = {'pixel_time':{'zlib':True,'chunksizes':(1, 1800, 3600), '_FillValue':fill, 'dtype':'i2'}}
 
     ds.to_netcdf(out, encoding=encoding)
-    
+
 
 def run_one(dt):
-    out_dir = COMP_CACHE / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
+    out_dir = comp_cache_dir(dt)
     out_path = out_dir / 'pixel_time.nc'
     if out_path.exists():
         return

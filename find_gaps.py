@@ -4,8 +4,6 @@ from tqdm import tqdm
 
 ROOT = Path('final')
 
-#final/2020/202007/20200701/20200701T0000/ISCCP-NG_L1g_demo_A1_v1_res_0_10deg__temp_11_00um_20200701T0000.nc
-#*/*/*/*/ISCCP-NG_L1g_demo_A1_v1_res_0_10deg__temp_11_00um_20200701T0000.nc
 files = sorted(ROOT.glob('*/*/*/*/*temp_11_00um_2*.nc'))
 bad = []
 with open('gap_files.txt','w') as fp:

@@ -111,9 +111,8 @@ def default_encoding(grid_shape):
     for k in ['latitude','longitude']:
         encoding[k] = {
             'zlib':False,
-            'scale_factor':0.05,
-            'dtype':'i2',
-            '_FillValue':netCDF4.default_fillvals['i2'],
+            'dtype':'f8',
+            '_FillValue':netCDF4.default_fillvals['f8'],
             'shuffle':False,
         }
     return encoding
@@ -139,6 +138,11 @@ def filename(k, dt):
     #return f"{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
     return f"ISCCP-NG_L1g_demo_A1_v1_res_0_05deg__{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
 
+def make_output_dir(out_root, dt):
+    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%m') / dt.strftime('%d') / dt.strftime('%H%M')
+    out_dir.mkdir(exist_ok=True, parents=True)
+    return out_dir
+
 
 def set_latlon(ds, lat, lon):
     ds['latitude'] = ['latitude'], lat
@@ -152,8 +156,7 @@ def set_latlon(ds, lat, lon):
 
 
 def rewrite_nc_general(f, out_root, dt, lat, lon):
-    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True, parents=True)
+    out_dir = make_output_dir(out_root, dt)
 
     ds = xr.open_dataset(f)
     k = next(iter(ds.data_vars))
@@ -175,8 +178,7 @@ def rewrite_nc_general(f, out_root, dt, lat, lon):
 
 
 def rewrite_wmo_id(f, out_root, dt, lat, lon):
-    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True)
+    out_dir = make_output_dir(out_root, dt)
     out = out_dir / filename('wmo_id', dt)
     if out.exists():
         return out
@@ -203,8 +205,7 @@ def rewrite_wmo_id(f, out_root, dt, lat, lon):
 
 
 def rewrite_satazi(f, out_root, dt, lat, lon):
-    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True)
+    out_dir = make_output_dir(out_root, dt)
     out = out_dir / filename('satellite_azimuth_angle',dt)
     if out.exists():
         return out
@@ -234,8 +235,7 @@ def rewrite_satazi(f, out_root, dt, lat, lon):
 
 
 def rewrite_satzen(f, out_root, dt, lat, lon):
-    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True)
+    out_dir = make_output_dir(out_root, dt)
     out = out_dir / filename('satellite_zenith_angle',dt)
     if out.exists():
         return out
@@ -265,8 +265,7 @@ def rewrite_satzen(f, out_root, dt, lat, lon):
 
 
 def rewrite_pixel_time(f, out_root, dt, lat, lon):
-    out_dir = out_root / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True)
+    out_dir = make_output_dir(out_root, dt)
     out = out_dir / filename('pixel_time',dt)
     if out.exists():
         return out

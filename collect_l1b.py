@@ -22,10 +22,14 @@ M11_ROOT = Path('/arcdata/nongoes/meteosat/meteosat11/')
 
 ROOTS = {'g16':G16_ROOT, 'g17':G17_ROOT, 'h8':H8_ROOT, 'm8':M8_ROOT, 'm11':M11_ROOT}
 
-def band_dir_path(dt, sat, band, l1b_dir=L1B_DIR):
-    band_dir = l1b_dir/dt.strftime('%Y')/dt.strftime('%Y%m')/dt.strftime('%Y%m%d')/dt.strftime('%Y%m%dT%H%M')/sat/f'{band}'
-    if not band_dir.is_dir():
-        raise IOError(f"Missing {band_dir}")
+def band_dir_path(dt, sat=None, band=None, l1b_dir=L1B_DIR):
+    band_dir = l1b_dir/dt.strftime('%Y/%m/%d/%H%M')
+    if sat is not None:
+        band_dir = band_dir / sat
+        if band is not None:
+            band_dir = band_dir / f'{band}'
+    elif band is not None:
+        raise ValueError("Sat before band")
     return band_dir
 
 def parse_or(fname):
@@ -225,7 +229,7 @@ def collect_all(dt, out_root=L1B_DIR, error_file=Path('errors.txt'), copy_func=o
     
     for attrs in utils.ALL_SATS:
         sat = attrs['sat']
-        out_dir = out_root / start.strftime('%Y') / start.strftime('%Y%m') / start.strftime('%Y%m%d') / start.strftime('%Y%m%dT%H%M') / sat
+        out_dir = band_dir_path(start, sat, l1b_dir=out_root)
         if out_dir.is_dir():
             #print(f'Already have {out_dir}')
             continue

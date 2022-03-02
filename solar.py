@@ -55,7 +55,7 @@ def _get_solazi(ds):
     attrs = {
         'standard_name': 'solar_azimuth_angle',
         'units':'degree',
-        'description':'solar angle for surface observer in degrees clockwise from north',
+        'description':'solar angle for surface observer in degrees clockwise from west',
         'value_range':'0 to 360 degrees'
     }
     
@@ -87,7 +87,7 @@ def main(task_id, num_tasks):
             except ValueError:
                 continue
             print(f, flush=True)
-            dt = datetime.strptime(f.parent, '%Y%m%dT%H%M')
+            dt = datetime.strptime(''.join(f.parent.parts[-4:]), '%Y%m%d%H%M')
             #zen_out_fname = f.parent / ('ISCCP-NG_L1g_demo_A1_v1_res_0_10deg__solar_zenith_angle_' + f.name.split('_')[-1])
             zen_out_fname = f.parent / filename('solar_zenith_angle', dt)
             #azi_out_fname = f.parent / ('ISCCP-NG_L1g_demo_A1_v1_res_0_10deg__solar_azimuth_angle_' + f.name.split('_')[-1])

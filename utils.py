@@ -77,7 +77,7 @@ AHI_VARIABLES = {
     '08':'temp_06_20um',
     '09':'temp_06_70um',
     '10':'temp_07_30um',
-    '11':'temp_08_50um',
+    '11':'temp_08_60um',
     '12':'temp_09_70um',
     '13':'temp_10_40um',
     '14':'temp_11_00um',
@@ -90,7 +90,7 @@ ABI_VARIABLES.update({'02':'refl_00_65um','03':'refl_00_86um','04':'refl_01_38um
 MSG_VARIABLES = {
     'IR_016':'refl_01_60um',
     'IR_039':'temp_03_80um',
-    'IR_087':'temp_08_70um',
+    'IR_087':'temp_08_60um',
     'IR_097':'temp_09_70um',
     'IR_108':'temp_11_00um',
     'IR_120':'temp_12_00um',
@@ -134,12 +134,10 @@ BAND_NICKNAME = {
  'refl_01_60um': 'Snow/Ice',
  'refl_02_20um': 'Cloud Phase',
  'temp_03_80um': 'Shortwave Window',
- 'temp_03_90um': 'Shortwave Window',
  'temp_06_20um': 'Upper-Level Tropospheric Water Vapor',
  'temp_06_70um': 'Mid-Level Tropospheric Water Vapor',
  'temp_07_30um': 'Lower-level Water Vapor',
- 'temp_08_50um': 'Cloud-Top Phase',
- 'temp_08_70um': 'Total Water',
+ 'temp_08_60um': 'Cloud-Top Phase',
  'temp_09_70um': 'Ozone Band',
  'temp_10_40um': 'Clean IR Longwave Window',
  'temp_11_00um': 'IR Longwave Window Band',
@@ -156,12 +154,10 @@ BAND_CLASS = {
  'refl_01_60um': 'near-infrared',
  'refl_02_20um': 'near-infrared',
  'temp_03_80um': 'infrared',
- 'temp_03_90um': 'infrared',
  'temp_06_20um': 'infrared',
  'temp_06_70um': 'infrared',
  'temp_07_30um': 'infrared',
- 'temp_08_50um': 'infrared',
- 'temp_08_70um': 'infrared',
+ 'temp_08_60um': 'infrared',
  'temp_09_70um': 'infrared',
  'temp_10_40um': 'infrared',
  'temp_11_00um': 'infrared',
@@ -179,7 +175,10 @@ STATS_FUNCS = ['mean','std','count','min','max']
 STATS_VARS = set()
 for k in STATS_BANDS:
     for f in STATS_FUNCS:
-        name = f'{k}_{f}'
+        if f != 'mean':
+            name = f'{k}_{f}'
+        else:
+            name = k
         BAND_NICKNAME[name] = BAND_NICKNAME[k]
         BAND_CENTRAL_WAV[name] = BAND_CENTRAL_WAV[k]
         BAND_CLASS[name] = BAND_CLASS[k]
@@ -265,11 +264,11 @@ SAT_NAMES = {
     'm11':'Meteosat-11'
 }
 WMO_IDS = {
-    'g16':152,
-    'g17':664,
-    'h8':167,
-    'm8':684,
-    'm11':305
+    'g16':270,
+    'g17':271,
+    'h8':173,
+    'm8':55,
+    'm11':70
 }
 
 _bands = {'g':ABI_BANDS,'h':AHI_BANDS,'m':MSG_BANDS}

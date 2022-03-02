@@ -15,11 +15,11 @@ from pathlib import Path
 from utils import spherical_angle_add, ALL_BANDS, AHI_BANDS, ABI_BANDS, MSG_BANDS, remap_fast_rad_mean, remap_fast_mean, remap_with_stats_rad, remap_with_stats, WMO_IDS, ALL_SATS, STATS_BANDS, STATS_FUNCS, BAND_CENTRAL_WAV
 WMO_ID = WMO_IDS
 from make_index import get_index_bands
-
-from collect_l1b import L1B_DIR
+from collect_l1b import band_dir_path
 import time
 import tempfile
 import os
+USER = os.environ['USER']
 import shutil
 
 import sys
@@ -55,13 +55,6 @@ def open_index(INDEX, sat, index_band):
     src_index_nn = np.memmap(index_dir / 'src_index_nn.dat', mode='r', dtype=np.uint32)
     dst_index_nn = np.memmap(index_dir / 'dst_index_nn.dat', mode='r', dtype=np.uint32)
     return src_index, dst_index, src_index_nn, dst_index_nn
-
-
-def band_dir_path(L1B_DIR, dt, sat, band):
-    band_dir = L1B_DIR/dt.strftime('%Y')/dt.strftime('%Y%m')/dt.strftime('%Y%m%d')/dt.strftime('%Y%m%dT%H%M')/sat/f'{band}'
-    if not band_dir.is_dir():
-        raise IOError(f"Missing {band_dir}")
-    return band_dir
 
 
 def read_scene(files, reader, bar=None):
@@ -102,11 +95,15 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
                          for k in STATS_FUNCS}
         else:
             composite = xr.DataArray(np.full(GRID_SHAPE, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
-    band_dir = band_dir_path(L1B_DIR, dt, sat, band)
+    band_dir = band_dir_path(dt, sat, band)
+    if not band_dir.is_dir():
+        raise IOError(f"Missing {band_dir}")
     src_index, dst_index, src_index_nn, dst_index_nn = open_index(INDEX, sat, index_band)
     files = list(band_dir.glob('*'))
     v, area = read_scene(files, reader)
     v = v.values
+    if np.isnan(v).all():
+        print(sat, band, 'All NaN')
     if bar is not None:
         bar.set_description(dt.strftime(f'Remapping imagery {sat} {band} %Y%m%dT%H%M'))
         
@@ -148,10 +145,15 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
     return composite
 
 
+def comp_cache_dir(dt):
+    out_dir = COMP_CACHE / dt.strftime('%Y/%m/%d/%H%M')
+    out_dir.mkdir(exist_ok=True, parents=True)
+    return out_dir
+
+
 def main(dt, progress=True):
     ordered_bands = ['temp_11_00um', *sorted(ALL_BANDS - set(['temp_11_00um']))]
-    out_dir = COMP_CACHE / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
-    out_dir.mkdir(exist_ok=True, parents=True)
+    out_dir = comp_cache_dir(dt)
     for band in ordered_bands:
         with_stats = band in STATS_BANDS
         if with_stats:
@@ -176,7 +178,7 @@ def main(dt, progress=True):
                 wmo_id = WMO_ID[sat]
                 index_band = get_index_bands(attrs['res'])[res]
                 tmp_root = Path(tempfile.gettempdir())
-                tmp = tmp_root / dt.strftime(f'{sat}_{band}_%Y%m%dT%H%M')
+                tmp = tmp_root / dt.strftime(f'{USER}_{sat}_{band}_%Y%m%dT%H%M')
                 tmp.mkdir()
                 try:
                     tempfile.tempdir = str(tmp)
@@ -198,7 +200,7 @@ def main(dt, progress=True):
             print(f"Saving {out_nc.values()}")
         else:
             print(f"Saving {out_nc}")
-        if with_stats:
+        if with_stats and composite is not None:
             for k in sorted(composite):
                 if k == 'mean':
                     composite[band] = composite[k]
@@ -210,7 +212,7 @@ def main(dt, progress=True):
                 del out_nc[k]
             for k in composite:
                 composite[k].to_dataset(name=k).to_netcdf(out_nc[k], encoding={k:ENCODING})
-        else:
+        elif composite is not None:
             composite.to_dataset(name=band).to_netcdf(out_nc, encoding={band:ENCODING})
         end = time.time()
         dur = end - start
@@ -231,8 +233,10 @@ if __name__ == '__main__':
             print(dt)
             try:
                 main(dt)
-            except Exception as e:
-                print(e, flush=True)
+            #except Exception as e:
+                #print(e, flush=True)
+            finally:
+                pass
     else:
         main(dt)
 

@@ -47,7 +47,9 @@ def default_attrs():
     attrs['satellite_azimuth_angle'] = {
         'long_name':'satellite azimuth angle',
         'standard_name':'satellite azimuth angle',
-        'units':'degrees'
+        'units':'degrees',
+        'description': 'satellite angle for surface observer in degrees clockwise from north',
+        'value_range': '-180 to 180 degrees'
     }
 
     attrs['sample_mode'] = {
@@ -79,10 +81,11 @@ def add_time(ds, dt, encoding):
 
 def default_encoding(grid_shape):
     encoding = {}
-    bands = utils.ALL_BANDS
+    bands = utils.ALL_BANDS.copy()
     for band in utils.STATS_BANDS:
         for func in utils.STATS_FUNCS:
-            bands.add(f'{band}_{func}')
+            if func != 'mean':
+                bands.add(f'{band}_{func}')
     for k in bands:
         if k.startswith('refl'):
             encoding[k] = {
@@ -136,7 +139,7 @@ def rewrite_nc(f, out_root, dt, lat, lon):
 
 def filename(k, dt):
     #return f"{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
-    return f"ISCCP-NG_L1g_demo_A1_v1_res_0_05deg__{k}_{dt.strftime('%Y%m%dT%H%M')}.nc"
+    return dt.strftime(f"ISCCP-NG_L1g_demo_v2_res_0_05deg__{k}__%Y%m%dT%H%M.nc")
 
 def make_output_dir(out_root, dt):
     out_dir = out_root / dt.strftime('%Y') / dt.strftime('%m') / dt.strftime('%d') / dt.strftime('%H%M')

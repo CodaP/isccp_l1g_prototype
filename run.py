@@ -2,7 +2,7 @@ import subprocess
 import pandas as pd
 
 
-times = pd.date_range('20200611','20200701',freq='3H')
+times = pd.date_range('20200829','20200831',freq='3H')
 
 procs = []
 
@@ -18,5 +18,9 @@ for start,end in zip(times, times[1:]):
     procs.append(p)
 
 for p in procs:
-    p.wait()
+    try:
+        p.wait()
+    except KeyboardInterrupt:
+        for p in procs:
+            p.terminate()
 

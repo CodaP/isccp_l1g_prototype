@@ -13,8 +13,10 @@ with open('date_list.txt') as fp:
         dts.add(dt)
 dts = sorted(dts)
 
+print('Reading index.csv')
 index = pd.read_csv('index.csv')
 indexed_files = set(index.f)
+print(f'{len(indexed_files)} files in index')
 
 num_missing = 0
 with open('missing.txt','w') as missing:
@@ -24,6 +26,6 @@ with open('missing.txt','w') as missing:
                 f = gen_path(band, dt)
                 if str(f) not in indexed_files:
                     num_missing += 1
-                    bar.write(str(f))
+                    #bar.write(str(f))
                     missing.write(str(f)+'\n')
                     bar.set_description(str(num_missing))

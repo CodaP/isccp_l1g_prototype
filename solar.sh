@@ -7,4 +7,4 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output="logs/solar-%a.log"
 
-/home/cphillips/.conda/envs/dev/bin/python solar.py $SLURM_ARRAY_TASK_ID $SLURM_ARRAY_TASK_MAX
+/home/cphillips/.conda/envs/dev/bin/python solar.py --missing $SLURM_ARRAY_TASK_ID $SLURM_ARRAY_TASK_MAX

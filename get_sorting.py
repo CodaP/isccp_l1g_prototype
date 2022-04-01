@@ -56,7 +56,7 @@ def get_sorting(grid_shape):
 
 def save_sorting(satzens, wmo_ids, sample_mode):
     wmo_ids.to_dataset(name='wmo_id').to_netcdf(COMP_CACHE / 'wmo_id.nc', encoding={'wmo_id':{'zlib':True}})
-    satzens.to_dataset(name='satzen').to_netcdf(COMP_CACHE / 'satzen.nc',
+    satzens.to_dataset(name='satellite_zenith_angle').to_netcdf(COMP_CACHE / 'satzen.nc',
                                                  encoding={
                                                      'satzen':{'zlib':True, 'scale_factor':.1,
                                                                'dtype':'i2',

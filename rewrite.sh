@@ -8,4 +8,4 @@
 #SBATCH --output="logs/netcdf-%a.log"
 
 export TMPDIR=/scratch/
-/home/cphillips/.conda/envs/dev/bin/python rewrite_netcdfs.py $SLURM_ARRAY_TASK_ID $SLURM_ARRAY_TASK_MAX
+/home/cphillips/.conda/envs/dev/bin/python rewrite_netcdfs.py --missing $SLURM_ARRAY_TASK_ID $SLURM_ARRAY_TASK_MAX

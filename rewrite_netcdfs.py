@@ -3,6 +3,7 @@ from tqdm import tqdm
 from datetime import datetime
 import make_netcdf
 import utils
+from make_sample import comp_cache_dir
 from multiprocessing import Pool
 OUT = Path('final')
 COMPOSITE_CACHE = Path('composite_cache')
@@ -14,13 +15,14 @@ def doit(item):
     dt, f = item
     try:
         return str(make_netcdf.rewrite_nc(f, OUT, dt, LAT, LON))
-    except Exception as e:
-        return str(type(e))
+    #except Exception as e:
+        #return str(type(e))
+    finally:
+        pass
 
 
 
-def main(task_id, num_tasks):
-    CACHE = Path('composite_cache')
+def main(task_id, num_tasks, missing=False):
     tasks = []
     grid = utils.get_grid()
     grid_shape=grid.shape
@@ -29,14 +31,23 @@ def main(task_id, num_tasks):
     global LON,LAT
     LON = lon[0]
     LAT = lat[:,0]
-    #composite_cache/2020/202001/20200101/20200101T0000/
-    with open('date_list.txt') as fp:
-        dts = [datetime.strptime(d.strip(),'%Y%m%dT%H%M') for d in fp]
+    if not missing:
+        #composite_cache/2020/202001/20200101/20200101T0000/
+        with open('date_list.txt') as fp:
+            dts = [datetime.strptime(d.strip(),'%Y%m%dT%H%M') for d in fp]
+    else:
+        dts = set()
+        with open('missing.txt') as fp:
+            for l in fp:
+                f = Path(l.strip())
+                dt = datetime.strptime(''.join(f.parts[-5:-1]), '%Y%m%d%H%M')
+                dts.add(dt)
+        dts = sorted(dts)
 
     dts = dts[task_id::num_tasks]
     print(len(dts), 'dts')
     for i,dt in enumerate(dts,1):
-        out_dir = CACHE / dt.strftime('%Y/%Y%m/%Y%m%d/%Y%m%dT%H%M')
+        out_dir = comp_cache_dir(dt)
         if out_dir.is_dir():
             for f in out_dir.glob('*.nc'):
                 tasks.append((dt, f))
@@ -51,14 +62,15 @@ def main(task_id, num_tasks):
     with tqdm(tasks) as bar:
         for task in bar:
             ret = doit(task)
-            print(f'{task[0]} {task[1].name}', flush=True)
+            bar.write(f'{task[0]} {task[1].name}\n{str(ret)}\n')
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('--missing',action='store_true')
     parser.add_argument('task_id',type=int)
     parser.add_argument('max_task_id',type=int)
     args = parser.parse_args()
-    main(args.task_id, args.max_task_id+1)
+    main(args.task_id, args.max_task_id+1, missing=args.missing)
 

@@ -22,6 +22,8 @@ import os
 USER = os.environ['USER']
 import shutil
 
+import repair_msg
+
 import sys
 
 COMP_CACHE = Path('composite_cache')
@@ -86,7 +88,7 @@ def read_scene(files, reader, bar=None):
         return v, area
 
 
-def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, with_stats=False, bar=None):
+def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, tmp, with_stats=False, bar=None):
     wavelength = BAND_CENTRAL_WAV[band]
     if composite is None:
         if with_stats:
@@ -100,7 +102,18 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
         raise IOError(f"Missing {band_dir}")
     src_index, dst_index, src_index_nn, dst_index_nn = open_index(INDEX, sat, index_band)
     files = list(band_dir.glob('*'))
-    v, area = read_scene(files, reader)
+    try:
+        v, area = read_scene(files, reader)
+    except IOError:
+        # if MSG, we may have a fix
+        if sat[0] == 'm':
+            for l1b_f in files:
+                repair_msg.repair_msg_l1b_cache(l1b_f, tmp)
+            # Try again
+            v, area = read_scene(files, reader)
+        else:
+            raise
+        
     v = v.values
     if np.isnan(v).all():
         print(sat, band, 'All NaN')
@@ -151,6 +164,13 @@ def comp_cache_dir(dt):
     return out_dir
 
 
+def save_netcdf(ds, out_nc, encoding=None):
+    out_nc = Path(out_nc)
+    tmp_out_nc = out_nc.parent / (out_nc.name+'.tmp')
+    ds.to_netcdf(tmp_out_nc, encoding=encoding)
+    tmp_out_nc.rename(out_nc)
+
+
 def main(dt, progress=True):
     ordered_bands = ['temp_11_00um', *sorted(ALL_BANDS - set(['temp_11_00um']))]
     out_dir = comp_cache_dir(dt)
@@ -179,11 +199,13 @@ def main(dt, progress=True):
                 index_band = get_index_bands(attrs['res'])[res]
                 tmp_root = Path(tempfile.gettempdir())
                 tmp = tmp_root / dt.strftime(f'{USER}_{sat}_{band}_%Y%m%dT%H%M')
+                if tmp.is_dir():
+                    shutil.rmtree(tmp)
                 tmp.mkdir()
                 try:
                     tempfile.tempdir = str(tmp)
                     os.environ['TMP'] = str(tmp)
-                    composite = composite_band(composite, band, index_band, sat, dt, reader, wmo_id, WMO_IDS, SAMPLE_MODE, with_stats=with_stats, bar=bar)
+                    composite = composite_band(composite, band, index_band, sat, dt, reader, wmo_id, WMO_IDS, SAMPLE_MODE, tmp, with_stats=with_stats, bar=bar)
                 except IOError:
                     print(f'Error reading {sat}')
                 finally:
@@ -211,9 +233,9 @@ def main(dt, progress=True):
                 del composite[k]
                 del out_nc[k]
             for k in composite:
-                composite[k].to_dataset(name=k).to_netcdf(out_nc[k], encoding={k:ENCODING})
+                save_netcdf(composite[k].to_dataset(name=k), out_nc[k], encoding={k:ENCODING})
         elif composite is not None:
-            composite.to_dataset(name=band).to_netcdf(out_nc, encoding={band:ENCODING})
+            save_netcdf(composite.to_dataset(name=band), out_nc, encoding={band:ENCODING})
         end = time.time()
         dur = end - start
         print(f'Took {dur:.1f} sec')

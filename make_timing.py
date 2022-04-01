@@ -45,7 +45,7 @@ def run_one(dt):
 
         src_index, dst_index, src_index_nn, dst_index_nn = open_index(INDEX, attrs['sat'], index_band)
 
-        band_dir = band_dir_path(L1B_DIR, dt, attrs['sat'], 'temp_11_00um')
+        band_dir = band_dir_path(dt, sat=attrs['sat'], band='temp_11_00um')
         print(band_dir)
 
         files = list(band_dir.glob('*'))
@@ -76,7 +76,7 @@ def run_one(dt):
     saveit(composite, out_path)
 
 def get_timing_list():
-    dts = sorted([datetime.strptime(i.name,'%Y%m%dT%H%M') for i in COMP_CACHE.glob('*/*/*/*')])
+    dts = sorted([datetime.strptime(''.join(i.parts[1:]),'%Y%m%d%H%M') for i in COMP_CACHE.glob('*/*/*/*')])
     with open('date_list.txt','w') as fp:
         for dt in dts:
             fp.write(dt.strftime('%Y%m%dT%H%M\n'))

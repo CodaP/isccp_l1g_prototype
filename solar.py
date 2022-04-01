@@ -50,13 +50,14 @@ def _get_solazi(ds):
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         azimuth = get_azimuth(lat.ravel(), lon.ravel(), start_time)
-    solazi = ((azimuth+90)%360).reshape(lon.shape)
+    solazi = azimuth.reshape(lon.shape)
+    solazi = (solazi+180) % 360 - 180
     
     attrs = {
         'standard_name': 'solar_azimuth_angle',
         'units':'degree',
-        'description':'solar angle for surface observer in degrees clockwise from west',
-        'value_range':'0 to 360 degrees'
+        'description':'solar angle for surface observer in degrees clockwise from north',
+        'value_range':'-180 to 180 degrees'
     }
     
     return xr.DataArray(solazi[np.newaxis], dims=['time','latitude','longitude'],
@@ -76,9 +77,18 @@ def get_zen_azi(f):
     return zen,azi
 
 
-def main(task_id, num_tasks):
-    dirs = ROOT.glob('*/*/*/*')
-    dirs = islice(dirs,task_id,None,num_tasks)
+def main(task_id, num_tasks, missing=False):
+    if missing:
+        dirs = set()
+        with open('missing.txt') as fp:
+            for line in fp:
+                f = Path(line.strip())
+                if 'solar' in f.name:
+                    dirs.add(f.parent)
+        dirs = sorted(dirs)[task_id::num_tasks]
+    else:
+        dirs = ROOT.glob('*/*/*/*')
+        dirs = islice(dirs,task_id,None,num_tasks)
 
     with tqdm(dirs) as bar:
         for d in bar:
@@ -106,9 +116,10 @@ def main(task_id, num_tasks):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('--missing',action='store_true')
     parser.add_argument('task_id',type=int)
     parser.add_argument('max_task_id',type=int)
     args = parser.parse_args()
-    main(args.task_id, args.max_task_id+1)
+    main(args.task_id, args.max_task_id+1, missing=args.missing)
 
 

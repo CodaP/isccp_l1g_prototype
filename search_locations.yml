@@ -1,0 +1,10 @@
+/arcdata/goes/grb/goes16/:
+  glob: "*/*/abi/L1b/RadF/*.nc"
+/arcdata/goes/grb/goes17/:
+  glob: "*/*/abi/L1b/RadF/*.nc"
+/arcdata/nongoes/japan/himawari08/:
+  glob: "*/*/*/*.DAT"
+/arcdata/nongoes/meteosat/meteosat8/:
+  glob: "*/*/*"
+/arcdata/nongoes/meteosat/meteosat11/:
+  glob: "*/*/*"

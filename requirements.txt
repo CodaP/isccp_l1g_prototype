@@ -1,0 +1,9 @@
+pandas
+numpy
+tqdm
+xarray
+netCDF4
+cartopy
+satpy
+pyresample
+pysolar

@@ -1,0 +1,53 @@
+# L1b
+
+## G16
+OR_ABI-L1b-RadF-M6C14_G16_s20201830000209_e20201830009517_c20201830010011.nc
+
+## G17
+OR_ABI-L1b-RadF-M6C14_G17_s20201830000319_e20201830009386_c20201830009442.nc
+
+## H8
+HS_H08_20200701_0000_B14_FLDK_R20_S0110.DAT ... HS_H08_20200701_0000_B14_FLDK_R20_S1010.DAT
+
+## M8
+H-000-MSG1__-MSG1_IODC___-IR_108___-000001___-202007010000-C_ ... H-000-MSG1__-MSG1_IODC___-IR_108___-000008___-202007010000-C_
+
+## M11
+H-000-MSG4__-MSG4________-IR_108___-000001___-202007010000-C_ ... H-000-MSG4__-MSG4________-IR_108___-000008___-202007010000-C_
+
+
+# SatPy Calibration
+
+## G16 and G17
+
+L1b stores *radiance*
+
+## H8
+
+* L1b stores *counts*
+* has 2 radiance calibrations: nominal and inter-calibration (GSICS)
+* GSICS is the *default* for VIS channels
+* no difference in practice, so maybe GSICS is missing
+* user can supply calibration
+
+calib_dict = {'B07': {'slope': 0.0037, 'offset': 18.5},
+              'B14': {'slope': -0.002, 'offset': 22.8},
+              'type': 'DN'}
+* has calibration for radiance -> brightness temperature
+
+        c0_ = self._header['calibration']["c0_rad2tb_conversion"][0]
+        c1_ = self._header['calibration']["c1_rad2tb_conversion"][0]
+        c2_ = self._header['calibration']["c2_rad2tb_conversion"][0]
+
+        return (c0_ + c1_ * Te_ + c2_ * Te_ ** 2).clip(0)
+
+
+## M8 and M11
+
+* L1b stores *counts*
+* has 2 calibrations in SatPy: nominal and GSICS (only for IR, VIS is filled with nominal)
+
+reader_kwargs={'ext_calib_coefs': coefs}
+
+
+

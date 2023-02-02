@@ -260,33 +260,41 @@ SAT_NAMES = {
     'g16':'GOES-16',
     'g17':'GOES-17',
     'h8':'Himawari-8',
+    'h9':'Himawari-9',
     'm8':'Meteosat-8',
+    'm9':'Meteosat-9',
     'm11':'Meteosat-11'
 }
 WMO_IDS = {
     'g16':270,
     'g17':271,
     'h8':173,
+    'h9':174,
     'm8':55,
+    'm9':56,
     'm11':70
 }
 
 _bands = {'g':ABI_BANDS,'h':AHI_BANDS,'m':MSG_BANDS}
 _res = {'g':ABI_RES,'h':AHI_RES, 'm':MSG_RES}
 _readers = {'g':'abi_l1b', 'h':'ahi_hsd', 'm':'seviri_l1b_hrit'}
+_reader_kwargs = {'g':{}, 'h':{'calib_mode':'nominal'}, 'm':{'calib_mode','nominal'}}
 
 SAT_HEIGHTS = {'g16': 35786023,
  'g17': 35786023,
  'h8': 35785863,
+ 'h9': 35785863,
  'm8': 35785831,
- 'm11': 35785831}
+ 'm9': 35785831,
+ 'm11': 35785831,
+}
 
-SAT_LONS = {'g16': -75.0, 'g17': -137.0, 'h8': 140.7, 'm8': 41.5, 'm11': 0.0}
+SAT_LONS = {'g16': -75.0, 'g17': -137.0, 'h8': 140.7, 'm8': 41.5, 'm11': 0.0, 'm9':45.5, 'h9':140.7}
 
 ALL_SATS = [
     {'sat':sat,'wmo_id':WMO_IDS[sat],'name':SAT_NAMES[sat],'bands': _bands[sat[0]], 'res':_res[sat[0]],
     'reader':_readers[sat[0]],
     'lon':SAT_LONS[sat], 'height':SAT_HEIGHTS[sat]
 }
-            for sat in ['g16','g17','h8','m8','m11']]
+            for sat in ['g16','g17','h8','m8','m11','m9','h9']]
     

@@ -17,12 +17,16 @@ G16_ROOT = Path('/arcdata/goes/grb/goes16/')
 G17_ROOT = Path('/arcdata/goes/grb/goes17/')
 #H8_ROOT = Path('/apollo/ait/dc/jma/himawari08/HSD/ahi/')
 H8_ROOT = Path('/arcdata/nongoes/japan/himawari08/')
+H9_ROOT = Path('/arcdata/nongoes/jma/himawari09/ahi/')
 M8_ROOT = Path('/arcdata/nongoes/meteosat/meteosat8/')
+M9_ROOT = Path('/arcdata/nongoes/meteosat/meteosat9/')
 M11_ROOT = Path('/arcdata/nongoes/meteosat/meteosat11/')
 
-ROOTS = {'g16':G16_ROOT, 'g17':G17_ROOT, 'h8':H8_ROOT, 'm8':M8_ROOT, 'm11':M11_ROOT}
+ROOTS = {'g16':G16_ROOT, 'g17':G17_ROOT, 'h8':H8_ROOT, 'm8':M8_ROOT, 'm11':M11_ROOT, 'm9':M9_ROOT, 'h9':H9_ROOT}
 
-def band_dir_path(dt, sat=None, band=None, l1b_dir=L1B_DIR):
+def band_dir_path(dt, sat=None, band=None, l1b_dir=None):
+    if l1b_dir is None:
+        l1b_dir = L1B_DIR
     band_dir = l1b_dir/dt.strftime('%Y/%m/%d/%H%M')
     if sat is not None:
         band_dir = band_dir / sat
@@ -210,7 +214,7 @@ def _get_fd(root, fmt, get_files, filter_fd, start, end):
 
 def get_fd(sat, start, end):
     root = ROOTS[sat]
-    fmts = {'g':'%Y/%Y_%m_%d_%j/abi/L1b/RadF','h':'%Y_%m/%Y_%m_%d_%j/%H%M','m':'%Y/%Y_%m_%d_%j'}
+    fmts = {'g':'%Y/%Y_%m_%d_%j/abi/L1b/RadF','h':'%Y/%Y_%m_%d_%j/%H%M','m':'%Y/%Y_%m_%d_%j'}
     fmt = fmts[sat[0]]
     get_files = {'g':get_or_files,'h':get_dat_files,'m':get_hrit_files}[sat[0]]
     filter_fd = {'g':filter_fd_goes, 'h':filter_fd_him, 'm':filter_fd_hrit}[sat[0]]
@@ -247,14 +251,19 @@ def collect_all(dt, out_root=L1B_DIR, error_file=Path('errors.txt'), copy_func=o
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('--freq', default='30min')
     parser.add_argument('dt')
     parser.add_argument('end_dt', nargs='?')
     args = parser.parse_args()
     dt = pd.to_datetime(args.dt)
     if args.end_dt is not None:
-        dt = pd.date_range(dt, args.end_dt, freq='30min')
+        dt = pd.date_range(dt, args.end_dt, freq=args.freq)
         for d in dt:
-            collect_all(d)
+            try:
+                collect_all(d)
+            except Exception as e:
+                print('Error collecting', d)
+                print(str(e), str(e.args))
     else:
         collect_all(dt)
 

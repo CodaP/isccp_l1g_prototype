@@ -26,10 +26,10 @@ import repair_msg
 
 import sys
 
-COMP_CACHE = Path('composite_cache')
+COMP_CACHE = Path('dat/composite_cache')
 COMP_CACHE.mkdir(exist_ok=True)
 
-INDEX = Path('index')
+INDEX = Path('dat/index')
 
 ENCODING = {
     'zlib':True,
@@ -65,13 +65,13 @@ def read_scene(files, reader, bar=None):
         old_stdout = sys.stdout
         old_stderr = sys.stderr
         try:
-            with open('/dev/null','w') as out:
-                with open('/dev/null','w') as err:
-                    sys.stdout = out
-                    sys.stderr = err
-                    scene = satpy.Scene(files, reader=reader)
-                    ds_names = scene.available_dataset_names()
-                    scene.load(ds_names)
+            #with open('/dev/null','w') as out:
+                #with open('/dev/null','w') as err:
+                    #sys.stdout = out
+                    #sys.stderr = err
+            scene = satpy.Scene(files, reader=reader)
+            ds_names = scene.available_dataset_names()
+            scene.load(ds_names)
         except Exception as e:
             raise IOError('Problem reading files')
         finally:
@@ -88,7 +88,7 @@ def read_scene(files, reader, bar=None):
         return v, area
 
 
-def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, tmp, with_stats=False, bar=None):
+def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode, tmp, l1b_dir=None, with_stats=False, bar=None):
     wavelength = BAND_CENTRAL_WAV[band]
     if composite is None:
         if with_stats:
@@ -97,7 +97,7 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
                          for k in STATS_FUNCS}
         else:
             composite = xr.DataArray(np.full(GRID_SHAPE, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
-    band_dir = band_dir_path(dt, sat, band)
+    band_dir = band_dir_path(dt, sat, band, l1b_dir=l1b_dir)
     if not band_dir.is_dir():
         raise IOError(f"Missing {band_dir}")
     src_index, dst_index, src_index_nn, dst_index_nn = open_index(INDEX, sat, index_band)
@@ -107,10 +107,12 @@ def composite_band(composite, band, index_band, sat, dt, reader, wmo_id, wmo_ids
     except IOError:
         # if MSG, we may have a fix
         if sat[0] == 'm':
+            print('Trying to repair')
             for l1b_f in files:
                 repair_msg.repair_msg_l1b_cache(l1b_f, tmp)
             # Try again
             v, area = read_scene(files, reader)
+            print('Repair successful')
         else:
             raise
         
@@ -207,7 +209,7 @@ def main(dt, progress=True):
                     os.environ['TMP'] = str(tmp)
                     composite = composite_band(composite, band, index_band, sat, dt, reader, wmo_id, WMO_IDS, SAMPLE_MODE, tmp, with_stats=with_stats, bar=bar)
                 except IOError:
-                    print(f'Error reading {sat}')
+                    print(f'Error reading {sat} {band}')
                 finally:
                     shutil.rmtree(tmp)
                     tempfile.tempdir = str(tmp_root)
@@ -245,13 +247,14 @@ def main(dt, progress=True):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('--freq',default='30min')
     parser.add_argument('dt')
     parser.add_argument('end', nargs='?')
     args = parser.parse_args()
     dt = pd.to_datetime(args.dt)
     if args.end is not None:
         end = pd.to_datetime(args.end)
-        for dt in pd.date_range(dt, end, freq='30min'):
+        for dt in pd.date_range(dt, end, freq=args.freq):
             print(dt)
             try:
                 main(dt)

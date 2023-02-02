@@ -22,7 +22,7 @@ print(len(missing_times))
 dts = [dt.strftime('%Y%m%dT%H%M') for dt in sorted(missing_times)]
 
 def run_one(start):
-    args = ['srun','--time','00:10:00','--mem=20G','-n1','python','make_sample.py',start]
+    args = ['srun','--time','00:10:00','--mem=20G','-n1','python','make_composite.py',start]
     print(' '.join(args))
     p = subprocess.run(args)
     

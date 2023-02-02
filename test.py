@@ -2,7 +2,7 @@ from pathlib import Path
 import netCDF4
 
 def get_sample(k):
-    return next(Path('final/2020/07/01/0000/').glob(f'*__{k}__*'))
+    return next(Path('dat/final/2020/07/01/0000/').glob(f'*__{k}__*'))
 
 
 

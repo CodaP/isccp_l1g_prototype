@@ -124,8 +124,8 @@ def main(dt, r_sample=2):
             input_dir = band_dir_path(dt, sat, band)
             assert input_dir.exists(), str(input_dir)
             input_files = list(input_dir.glob('*'))
-            output_dir = Path('index') / sat / band
-            satzen_nc = Path('satzen_cache') / f'{sat}_satzen.nc'
+            output_dir = Path('dat/index') / sat / band
+            satzen_nc = Path('dat/satzen_cache') / f'{sat}_satzen.nc'
             assert satzen_nc.exists(), str(satzen_nc)
             set_d(bar, 'getting max satzen')
             max_satzen = get_max_satzen(r_footprint, r_sample)

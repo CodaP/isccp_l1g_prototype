@@ -8,7 +8,7 @@ import warnings
 import shutil
 import os
 
-L1B_DIR = Path('l1b')
+L1B_DIR = Path('dat/l1b')
 L1B_DIR.mkdir(exist_ok=True)
 
 #G16_ROOT = Path('/apollo/ait/dc/noaa/goes_r/abi/')

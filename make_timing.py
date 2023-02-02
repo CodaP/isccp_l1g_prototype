@@ -13,9 +13,9 @@ from make_sample import open_index, read_scene, comp_cache_dir
 from collect_l1b import band_dir_path, L1B_DIR
 import satpy
 
-COMP_CACHE = Path('composite_cache/')
-INDEX = Path('index')
-ABI_SCAN_DIR = Path('ancil/abi_scan_schedule/')
+COMP_CACHE = Path('dat/composite_cache/')
+INDEX = Path('dat/index')
+ABI_SCAN_DIR = Path('dat/ancil/abi_scan_schedule/')
 
 WMO_IDS = xr.open_dataset(COMP_CACHE / 'wmo_id.nc').wmo_id
 SAMPLE_MODE = xr.open_dataset(COMP_CACHE / 'sample_mode.nc').sample_mode

@@ -2,7 +2,7 @@ from pathlib import Path
 import xarray as xr
 from tqdm import tqdm
 
-ROOT = Path('final')
+ROOT = Path('dat/final')
 
 files = sorted(ROOT.glob('*/*/*/*/*temp_11_00um_2*.nc'))
 bad = []

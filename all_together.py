@@ -7,7 +7,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime, timedelta
 
-OUT = Path('final')
+OUT = Path('dat/final')
 OUT.mkdir(exist_ok=True)
 
 

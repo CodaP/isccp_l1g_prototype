@@ -5,8 +5,8 @@ import make_netcdf
 import utils
 from make_sample import comp_cache_dir
 from multiprocessing import Pool
-OUT = Path('final')
-COMPOSITE_CACHE = Path('composite_cache')
+OUT = Path('dat/final')
+COMPOSITE_CACHE = Path('dat/composite_cache')
 
 LAT=None
 LON=None

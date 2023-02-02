@@ -1,11 +1,11 @@
 from make_index import main, get_max_satzen
 from pathlib import Path
 import warnings
-INDEX = Path('index')
-L1B = Path('l1b')
+INDEX = Path('dat/index')
+L1B = Path('dat/l1b')
 
 
-satzen_ncs = ['satzen_cache/g16_satzen.nc','satzen_cache/g17_satzen.nc','satzen_cache/h8_satzen.nc']
+satzen_ncs = ['dat/satzen_cache/g16_satzen.nc','dat/satzen_cache/g17_satzen.nc','dat/satzen_cache/h8_satzen.nc']
 
 r_sample = 2e3
 

@@ -13,7 +13,7 @@ from make_netcdf import filename
 import warnings
 from pysolar.solar import get_altitude, get_azimuth
 
-ROOT = Path('final/')
+ROOT = Path('dat/final/')
 
 
 SOLAR_ZENITH_ENCODING = {'solar_zenith_angle':{'zlib':True, 'scale_factor':.1, 'add_offset':0, 'dtype':'i2',

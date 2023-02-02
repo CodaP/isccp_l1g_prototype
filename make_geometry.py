@@ -16,11 +16,12 @@ from pathlib import Path
 import shutil
 import warnings
 import time
+from datetime import datetime
 import os
 
-SATZEN_CACHE = Path('satzen_cache')
+SATZEN_CACHE = Path('dat/satzen_cache')
 SATZEN_CACHE.mkdir(exist_ok=True)
-SATAZI_CACHE = Path('satazi_cache')
+SATAZI_CACHE = Path('dat/satazi_cache')
 SATAZI_CACHE.mkdir(exist_ok=True)
 
 def get_satzen(area):
@@ -177,6 +178,6 @@ def composite_zenith():
 
 
 if __name__ == '__main__':
-    #make_geometry(Path('l1b/2020/07/01/0000/'))
-    composite_zenith()
+    make_geometry(Path('dat/l1b/2022/07/01/0000/'), datetime(2022,7,1))
+    #composite_zenith()
 

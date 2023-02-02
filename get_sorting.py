@@ -9,8 +9,8 @@ from pathlib import Path
 from make_geometry import SATZEN_CACHE
 from make_index import get_index_bands, get_max_satzen
 
-INDEX = Path('index')
-COMP_CACHE = Path('composite_cache')
+INDEX = Path('dat/index')
+COMP_CACHE = Path('dat/composite_cache')
 COMP_CACHE.mkdir(exist_ok=True)
 
 def get_sorting(grid_shape):

@@ -28,7 +28,7 @@ def file_exists(ftp, f):
 
 
 def upload(ftp, root, f, overwrite=False):
-    dst = Path('/ISCCP-NG/L1g') / root / f.relative_to(Path('final'))
+    dst = Path('/ISCCP-NG/L1g') / root / f.relative_to(Path('dat/final'))
     try_mkd(ftp, str(dst.parent.parent.parent.parent.parent))
     try_mkd(ftp, str(dst.parent.parent.parent.parent))
     try_mkd(ftp, str(dst.parent.parent.parent))

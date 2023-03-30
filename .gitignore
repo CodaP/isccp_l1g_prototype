@@ -16,3 +16,5 @@ xrit/
 .ipynb_checkpoints/
 composite_cache*
 dat/
+.vscode/
+notebooks/videos

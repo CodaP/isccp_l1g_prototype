@@ -1,0 +1,5 @@
+python run.py wmo --sortdir dat/sample_cache/g16_g17_h8_m11_m8/ --freq=3H 2018-11-22 2018-12-23
+python run.py wmo --sortdir dat/sample_cache/g16_g17_h8_m11_m8/ 2018-11-28 2018-11-29
+python run.py wmo --sortdir dat/sample_cache/g16_g17_h8_m11_m8/ --freq=3H 2021-01-01 2022-07-01
+python run.py wmo --sortdir dat/sample_cache/g16_g17_h8_m11_m9/ --freq=3H 2022-07-01 2023-01-01
+

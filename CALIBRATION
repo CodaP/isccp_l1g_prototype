@@ -25,9 +25,9 @@ L1b stores *radiance*
 ## H8
 
 * L1b stores *counts*
-* has 2 radiance calibrations: nominal and inter-calibration (GSICS)
-* GSICS is the *default* for VIS channels
-* no difference in practice, so maybe GSICS is missing
+* has 2 radiance calibrations: nominal (header block 5) and inter-calibration (header block 6)
+* ISCCP-NG L1g uses the inter-calibration coefficients
+* no difference in practice
 * user can supply calibration
 
 calib_dict = {'B07': {'slope': 0.0037, 'offset': 18.5},
@@ -46,6 +46,7 @@ calib_dict = {'B07': {'slope': 0.0037, 'offset': 18.5},
 
 * L1b stores *counts*
 * has 2 calibrations in SatPy: nominal and GSICS (only for IR, VIS is filled with nominal)
+* ISCCP-NG L1g uses "nominal"
 
 reader_kwargs={'ext_calib_coefs': coefs}
 

@@ -8,7 +8,6 @@ XRIT = Path('xrit/PublicDecompWT/xRITDecompress/xRITDecompress').absolute()
 assert XRIT.exists()
 
 SCRATCH = Path('/scratch')
-assert SCRATCH.is_dir()
 
 def decompress_one(f, scratch):
     p = subprocess.run([str(XRIT), str(f.absolute())], cwd=scratch, capture_output=True)
@@ -33,6 +32,7 @@ def test_decompress_one():
 
 def main():
     previous = {}
+    assert SCRATCH.is_dir()
     scratch = SCRATCH / 'test_decompress'
     if scratch.is_dir():
         shutil.rmtree(scratch)

@@ -1,7 +1,7 @@
 
 from pathlib import Path
 import shutil
-from make_sample import band_dir_path, COMP_CACHE
+from make_sample import band_dir_path, SAMPLE_CACHE
 from datetime import datetime
 
 
@@ -16,7 +16,7 @@ with open(f) as fp:
             #sat = l1b.parent.parent.name
             dt = l1b.parent.parent.parent.name
             dt = datetime.strptime(dt, '%Y%m%dT%H%M')
-            path = COMP_CACHE / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
+            path = SAMPLE_CACHE / dt.strftime('%Y') / dt.strftime('%Y%m') / dt.strftime('%Y%m%d') / dt.strftime('%Y%m%dT%H%M')
             files = list(path.glob(f'{band}*.nc'))
             if len(files) > 0:
                 for f2 in files:

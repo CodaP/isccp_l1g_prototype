@@ -54,10 +54,13 @@ def unshuffle(f, dst_dir, wmo_masks):
             dir = dst_dir / str(id)
             dir.mkdir(exist_ok=True)
             dst = dir / f'{k}.dat.zstd'
+            tmp = dir / f'.{k}.dat.zstd'
             if dst.exists():
                 continue
-            with open(dst, 'wb') as fp:
+            with open(tmp, 'wb') as fp:
                 fp.write(zstd.compress(layer.filled(v.fill_value)))
+            tmp.rename(dst)
+            
 
 
 def main(task_id, ntasks):

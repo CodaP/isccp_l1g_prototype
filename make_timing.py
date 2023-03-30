@@ -2,45 +2,36 @@ from pathlib import Path
 import os
 os.environ['XRIT_DECOMPRESS_PATH'] = str(Path('xrit/PublicDecompWT/xRITDecompress/xRITDecompress').absolute())
 import timing
-import netCDF4
 import xarray as xr
 import numpy as np
-from tqdm import tqdm
-from datetime import datetime, timedelta
 from utils import ALL_SATS, remap_fast_mean
 from make_index import get_index_bands
-from make_sample import open_index, read_scene, comp_cache_dir
-from collect_l1b import band_dir_path, L1B_DIR
-import satpy
+from make_sample import open_index, read_scene, sample_path, SAMPLE_CACHE, INDEX, save
+from collect_l1b import band_dir_path
+import pandas as pd
 
-COMP_CACHE = Path('dat/composite_cache/')
-INDEX = Path('dat/index')
 ABI_SCAN_DIR = Path('dat/ancil/abi_scan_schedule/')
 
-WMO_IDS = xr.open_dataset(COMP_CACHE / 'wmo_id.nc').wmo_id
-SAMPLE_MODE = xr.open_dataset(COMP_CACHE / 'sample_mode.nc').sample_mode
-GRID_SHAPE = WMO_IDS.shape
+def load_sort_data(sort_dir):
+    global GRID_SHAPE
+    if sort_dir is None:
+        sort_dir = SAMPLE_CACHE
+    else:
+        sort_dir = Path(sort_dir)
+    wmo_ids = xr.open_dataset(sort_dir / 'wmo_id.nc').wmo_id
+    GRID_SHAPE = wmo_ids.shape[-2:]
+    return wmo_ids
 
-def saveit(composite, out):
-    fill = netCDF4.default_fillvals['i2']
-    ds = xr.Dataset()
-    ds['pixel_time'] = composite.fillna(fill).astype(np.int16)
-
-    encoding = {'pixel_time':{'zlib':True,'chunksizes':(1, 1800, 3600), '_FillValue':fill, 'dtype':'i2'}}
-
-    ds.to_netcdf(out, encoding=encoding)
-
-
-def run_one(dt):
-    out_dir = comp_cache_dir(dt)
-    out_path = out_dir / 'pixel_time.nc'
+def run_one(sat, dt):
+    out_path = sample_path(dt, 'pixel_time', sat)
     if out_path.exists():
         return
 
-    composite = xr.DataArray(np.full(GRID_SHAPE, np.nan, dtype=np.float32), dims=['layer','latitude','longitude'])
-
     for attrs in ALL_SATS[:]:
-        prefix = (attrs['name'])
+        if attrs['sat'] != sat:
+            continue
+    
+        pixel_time = np.full(GRID_SHAPE, np.nan, dtype=np.float32)
         _,index_band = max(get_index_bands(attrs['res']).items())
 
         src_index, dst_index, src_index_nn, dst_index_nn = open_index(INDEX, attrs['sat'], index_band)
@@ -49,60 +40,56 @@ def run_one(dt):
         print(band_dir)
 
         files = list(band_dir.glob('*'))
-        try:
-            v, area = read_scene(files, attrs['reader'])
+        if len(files) == 0:
+            print('no files found for ', dt, sat, ' skipping')
+            return
 
-            if attrs['reader'] == 'seviri_l1b_hrit':
-                start_time, line_times = timing.meteosat_get_time_offset(v)
-                offsets = timing.meteosat_estimate_pixel_time_offsets(line_times)
+        v, area = read_scene(files, attrs['reader'])
 
-            elif attrs['reader'] == 'ahi_hsd':
-                start_time, line_times = timing.himawari_line_times(files)
-                offsets = timing.himawari_estimate_pixel_time_offsets(line_times)
+        if attrs['reader'] == 'seviri_l1b_hrit':
+            start_time, line_times = timing.meteosat_get_time_offset(v)
+            offsets = timing.meteosat_estimate_pixel_time_offsets(line_times)
 
-            elif attrs['reader'] == 'abi_l1b':
-                offsets = timing.goes_pixel_time_offset(ABI_SCAN_DIR)
-                start_time = timing.goes_start_time(files)
-            adjust = (start_time - dt).total_seconds()
-            offsets += adjust
+        elif attrs['reader'] == 'ahi_hsd':
+            start_time, line_times = timing.himawari_line_times(files)
+            offsets = timing.himawari_estimate_pixel_time_offsets(line_times)
 
-            out_nn = remap_fast_mean(src_index_nn, dst_index_nn, offsets, GRID_SHAPE[-2:])
+        elif attrs['reader'] == 'abi_l1b':
+            offsets = timing.goes_pixel_time_offset(ABI_SCAN_DIR)
+            start_time = timing.goes_start_time(files)
+        adjust = (start_time - dt).total_seconds()
+        offsets += adjust
 
-            for layer in range(composite.shape[0]):
-                mask = (WMO_IDS[layer].values  == attrs['wmo_id'])
-                composite.values[layer, mask] = out_nn[mask]
-        except Exception as e:
-            print(f'Problem reading {attrs["sat"]}')
-    saveit(composite, out_path)
+        out_nn = remap_fast_mean(src_index_nn, dst_index_nn, offsets, GRID_SHAPE[-2:])
 
-def get_timing_list():
-    dts = sorted([datetime.strptime(''.join(i.parts[1:]),'%Y%m%d%H%M') for i in COMP_CACHE.glob('*/*/*/*')])
-    with open('date_list.txt','w') as fp:
-        for dt in dts:
-            fp.write(dt.strftime('%Y%m%dT%H%M\n'))
-
-
-def main(task_id, num_tasks):
-    with open('date_list.txt') as fp:
-        dts = [datetime.strptime(i.strip(),'%Y%m%dT%H%M') for i in fp]
-    dts = dts[task_id::num_tasks]
-    print(f'{len(dts)} tasks')
-
-    for i,dt in enumerate(dts,1):
-        print(f'{i}/{len(dts)}', flush=True)
-        try:
-            run_one(dt)
-        except IOError:
-            print('problem reading',dt, flush=True)
-        print(flush=True)
+        for layer in reversed(range(WMO_IDS.shape[0])):
+            mask = (WMO_IDS[layer].values  == attrs['wmo_id'])
+            pixel_time[mask] = out_nn[mask]
+        
+        save(pixel_time, 'pixel_time', out_path)
 
     
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('task_id',type=int)
-    parser.add_argument('max_task_id',type=int)
+    parser.add_argument('--freq',default='30min')
+    parser.add_argument('--sortdir')
+    parser.add_argument('sat')
+    parser.add_argument('dt')
+    parser.add_argument('end', nargs='?')
     args = parser.parse_args()
-    main(args.task_id, args.max_task_id+1)
-
+    dt = pd.to_datetime(args.dt)
+    WMO_IDS = load_sort_data(args.sortdir)
+    if args.end is not None:
+        end = pd.to_datetime(args.end)
+        for dt in pd.date_range(dt, end, freq=args.freq):
+            print(args.sat, dt)
+            try:
+                run_one(args.sat, dt)
+            except Exception as e:
+                print(e, flush=True)
+            finally:
+                pass
+    else:
+        run_one(args.sat, dt)

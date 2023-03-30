@@ -76,6 +76,16 @@ def set_d(bar, msg):
         bar.set_description(f'{bar.prefix} {msg}')
 
 def make_one(files, out_dir, satzen_nc, max_satzen, bar=None):
+    dst_index_path = out_dir / 'dst_index.dat'
+    src_index_path = out_dir / 'src_index.dat'
+    dst_index_nn_path = out_dir / 'dst_index_nn.dat'
+    src_index_nn_path = out_dir / 'src_index_nn.dat'
+
+    # if all files exist, return
+    if dst_index_path.exists() and src_index_path.exists() and dst_index_nn_path.exists() and src_index_nn_path.exists():
+        set_d(bar, 'all files exist')
+        return
+
     set_d(bar, f'Making {out_dir}')
     out_dir.mkdir(exist_ok=True, parents=True)
     set_d(bar, 'loading satzen')
@@ -89,23 +99,29 @@ def make_one(files, out_dir, satzen_nc, max_satzen, bar=None):
     grid = get_grid()
     
     # Elliptical mean
-    set_d(bar, f'making ellip index ({area.shape}) -> ({grid.shape})')
-    #grid_idx, sat_idx = get_index(area, grid, satzen, max_satzen, radius=2e3)
-    grid_idx, sat_idx = get_index_fast(area, grid, radius=2e3)
-    set_d(bar, 'saving ellip index')
-    with open(out_dir / 'dst_index.dat','wb') as fp:
-        grid_idx.tofile(fp)
-    with open(out_dir / 'src_index.dat','wb') as fp:
-        sat_idx.tofile(fp)
+    if not (dst_index_path.exists() and src_index_path.exists()):
+        set_d(bar, f'making ellip index ({area.shape}) -> ({grid.shape})')
+        #grid_idx, sat_idx = get_index(area, grid, satzen, max_satzen, radius=2e3)
+        grid_idx, sat_idx = get_index_fast(area, grid, radius=2e3)
+        set_d(bar, 'saving ellip index')
+        with open(dst_index_path,'wb') as fp:
+            grid_idx.tofile(fp)
+        with open(src_index_path,'wb') as fp:
+            sat_idx.tofile(fp)
+    else:
+        print('ellip index exists', dst_index_path, src_index_path)
     
     # NN mean
-    set_d(bar, 'making nn index')
-    grid_idx_nn, sat_idx_nn = get_nn_index(area, grid, radius=10e3, nprocs=1)
-    set_d(bar, 'saving nn index')
-    with open(out_dir / 'dst_index_nn.dat','wb') as fp:
-        grid_idx_nn.tofile(fp)
-    with open(out_dir / 'src_index_nn.dat','wb') as fp:
-        sat_idx_nn.tofile(fp)
+    if not (dst_index_nn_path.exists() and src_index_nn_path.exists()):
+        set_d(bar, 'making nn index')
+        grid_idx_nn, sat_idx_nn = get_nn_index(area, grid, radius=10e3, nprocs=1)
+        set_d(bar, 'saving nn index')
+        with open(dst_index_nn_path,'wb') as fp:
+            grid_idx_nn.tofile(fp)
+        with open(src_index_nn_path,'wb') as fp:
+            sat_idx_nn.tofile(fp)
+    else:
+        print('nn index exists', dst_index_nn_path, src_index_nn_path)
         
         
 def main(dt, r_sample=2):
@@ -122,10 +138,12 @@ def main(dt, r_sample=2):
             prefix = f'{sat} {band}:'
             bar.prefix = prefix
             input_dir = band_dir_path(dt, sat, band)
-            assert input_dir.exists(), str(input_dir)
+            if not input_dir.exists():
+                print(sat, band, 'no input files')
+                continue
             input_files = list(input_dir.glob('*'))
             output_dir = Path('dat/index') / sat / band
-            satzen_nc = Path('dat/satzen_cache') / f'{sat}_satzen.nc'
+            satzen_nc = Path('dat/satzen_cache') / f'{sat}_satellite_zenith_angle.nc'
             assert satzen_nc.exists(), str(satzen_nc)
             set_d(bar, 'getting max satzen')
             max_satzen = get_max_satzen(r_footprint, r_sample)

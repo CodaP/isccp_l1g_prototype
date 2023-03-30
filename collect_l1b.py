@@ -8,7 +8,7 @@ import warnings
 import shutil
 import os
 
-L1B_DIR = Path('dat/l1b')
+L1B_DIR = Path('dat/l1b').absolute()
 L1B_DIR.mkdir(exist_ok=True)
 
 #G16_ROOT = Path('/apollo/ait/dc/noaa/goes_r/abi/')
@@ -20,9 +20,10 @@ H8_ROOT = Path('/arcdata/nongoes/japan/himawari08/')
 H9_ROOT = Path('/arcdata/nongoes/jma/himawari09/ahi/')
 M8_ROOT = Path('/arcdata/nongoes/meteosat/meteosat8/')
 M9_ROOT = Path('/arcdata/nongoes/meteosat/meteosat9/')
+M10_ROOT = Path('/arcdata/nongoes/meteosat/meteosat10/')
 M11_ROOT = Path('/arcdata/nongoes/meteosat/meteosat11/')
 
-ROOTS = {'g16':G16_ROOT, 'g17':G17_ROOT, 'h8':H8_ROOT, 'm8':M8_ROOT, 'm11':M11_ROOT, 'm9':M9_ROOT, 'h9':H9_ROOT}
+ROOTS = {'g16':G16_ROOT, 'g17':G17_ROOT, 'h8':H8_ROOT, 'm8':M8_ROOT, 'm11':M11_ROOT, 'm9':M9_ROOT, 'h9':H9_ROOT, 'm10':M10_ROOT}
 
 def band_dir_path(dt, sat=None, band=None, l1b_dir=None):
     if l1b_dir is None:
@@ -126,7 +127,7 @@ def filter_fd_hrit(files, start, end=None):
             return segs.iloc[:0]
         else:
             return segs
-    full_files = files.loc[files.band.isin(bands)].groupby('band').apply(all_or_none)
+    full_files = files.loc[files.band.isin(bands)].groupby('band', group_keys=True).apply(all_or_none)
     if full_files.empty:
         return full_files
     full_files = full_files.path
@@ -137,7 +138,7 @@ def filter_fd_hrit(files, start, end=None):
         
 
 def save_goes_files(out_root, sat, files, copy_func=shutil.copy, progress=True):
-    tasks = list(files.iteritems())
+    tasks = list(files.items())
     def run(it):
         for (start, band), f in it:
             variable = utils.ABI_VARIABLES[f'{band:02d}']
@@ -155,7 +156,7 @@ def save_goes_files(out_root, sat, files, copy_func=shutil.copy, progress=True):
             
             
 def save_him_files(out_root, sat, files, copy_func=shutil.copy, progress=True):
-    tasks = list(files.iteritems())
+    tasks = list(files.items())
     def run(it):
         for (band, seg), f in it:
             variable = utils.AHI_VARIABLES[f'{band:02d}']
@@ -234,17 +235,13 @@ def collect_all(dt, out_root=L1B_DIR, error_file=Path('errors.txt'), copy_func=o
     for attrs in utils.ALL_SATS:
         sat = attrs['sat']
         out_dir = band_dir_path(start, sat, l1b_dir=out_root)
-        if out_dir.is_dir():
-            #print(f'Already have {out_dir}')
-            continue
+        print(start.strftime(f'Collecting L1b for {sat} %Y-%m-%dT%H:%M'))
+        fd = get_fd(sat, start, end)
+        if fd is not None:
+            save_files(out_dir, sat, fd, copy_func=copy_func, progress=progress)
         else:
-            print(start.strftime(f'Collecting L1b for {sat} %Y-%m-%dT%H:%M'))
-            fd = get_fd(sat, start, end)
-            if fd is not None:
-                save_files(out_dir, sat, fd, copy_func=copy_func, progress=progress)
-            else:
-                with open(error_file, 'a') as fp:
-                    fp.write(str(out_dir)+'\n')
+            with open(error_file, 'a') as fp:
+                fp.write(str(out_dir)+'\n')
     
     
 

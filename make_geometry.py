@@ -9,8 +9,8 @@ from utils import spherical_angle_add, get_area, ALL_SATS
 
 from collect_l1b import L1B_DIR
 import make_sample
-from make_sample import GRID_SHAPE
 import tempfile
+from collect_l1b import band_dir_path
 
 from pathlib import Path
 import shutil
@@ -18,6 +18,7 @@ import warnings
 import time
 from datetime import datetime
 import os
+import pandas as pd
 
 SATZEN_CACHE = Path('dat/satzen_cache')
 SATZEN_CACHE.mkdir(exist_ok=True)
@@ -30,11 +31,18 @@ def get_satzen(area):
         warnings.simplefilter('ignore')
         proj = area.to_cartopy_crs()
         xang, yang = get_geostationary_angle_extent(area)
-    x,y = np.meshgrid(np.linspace(-xang, xang,width, dtype=np.float32),
-                      np.linspace(-yang, yang, height, dtype=np.float32))
-    h = proj.proj4_params['h']
+        x,y = np.meshgrid(np.linspace(-xang, xang,width, dtype=np.float32),
+                        np.linspace(-yang, yang, height, dtype=np.float32))
+        if 'h' in proj.proj4_params:
+            h = proj.proj4_params['h']
+        else:
+            h = proj.to_dict()['h']
+        if 'lon_0' in proj.proj4_params:
+            lon_0 = proj.proj4_params['lon_0']
+        else:
+            lon_0 = proj.to_dict()['lon_0']
     lon,lat = ccrs.PlateCarree().transform_points(proj, y*h, x*h).T[:2]
-    a = np.deg2rad(lon - proj.proj4_params['lon_0'])
+    a = np.deg2rad(lon - lon_0)
     b = np.deg2rad(lat)
     star_zen = np.rad2deg(spherical_angle_add(a, b))
     sat_ang = np.rad2deg(spherical_angle_add(x, y))
@@ -44,8 +52,16 @@ def get_satzen(area):
 
 def get_satazi(area):
     lon, lat = area.get_lonlats()
-    proj = area.to_cartopy_crs()
-    azi = sensor_azimuth(proj.proj4_params['lon_0'], 0, lon, lat)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        proj = area.to_cartopy_crs()
+        if 'lon_0' in proj.proj4_params:
+            lon_0 = proj.proj4_params['lon_0']
+            print(proj.proj4_params)
+        else:
+            lon_0 = proj.to_dict()['lon_0']
+            print(proj.to_dict())
+    azi = sensor_azimuth(lon_0, 0, lon, lat)
     azi = azi.astype(np.float32)
     return azi
 
@@ -89,13 +105,26 @@ SATAZI_ENCODING = {
 }
 
 
-def make_geometry(dt_dir):
+def make_geometry(dt_dir, dt):
+    satzen_out_dir = SATZEN_CACHE / dt.strftime('%Y/%m/%d')
+    satazi_out_dir = SATAZI_CACHE / dt.strftime('%Y/%m/%d')
+
     with tqdm(ALL_SATS) as bar:
         for attrs in bar:
             sat = attrs['sat']
+            satzen_out = satzen_out_dir / f'{sat}_satellite_zenith_angle.nc'
+            satazi_out = satazi_out_dir / f'{sat}_satellite_azimuth_angle.nc'
+            if satzen_out.exists() and satazi_out.exists():
+                print(f'Already have {sat}')
+                continue
             reader = attrs['reader']
-            
-            files = list((dt_dir / sat / f'temp_11_00um').glob('*'))
+            data_dir = dt_dir / sat / f'temp_11_00um'
+            files = list(data_dir.glob('*'))
+            if len(files) == 0:
+                print(f'No data for {sat}: {data_dir}')
+                continue
+            satzen_out.parent.mkdir(exist_ok=True, parents=True)
+            satazi_out.parent.mkdir(exist_ok=True, parents=True)
             area = get_area(files, reader=reader)
             bar.set_description(f'{sat} satzen')
             sat_zen = get_satzen(area)
@@ -104,23 +133,74 @@ def make_geometry(dt_dir):
             
             ds = xr.Dataset()
             ds['satellite_zenith_angle'] = ['y','x'], sat_zen
-            out = SATZEN_CACHE / f'{sat}_satellite_zenith_angle.nc'
-            bar.set_description(f'saving {out}')
-            if out.is_file():
-                out.unlink()
-            ds.to_netcdf(out, encoding=SATZEN_ENCODING)
+            bar.set_description(f'saving {satzen_out}')
+            ds.to_netcdf(satzen_out, encoding=SATZEN_ENCODING)
 
             ds = xr.Dataset()
             ds['satellite_azimuth_angle'] = ['y','x'], sat_azi
-            out = SATAZI_CACHE / f'{sat}_satellite_azimuth_angle.nc'
-            bar.set_description(f'saving {out}')
-            if out.is_file():
-                out.unlink()
-            ds.to_netcdf(out, encoding=SATAZI_ENCODING)
+            bar.set_description(f'saving {satazi_out}')
+            ds.to_netcdf(satazi_out, encoding=SATAZI_ENCODING)
+
+
+def sample_geometry(sat, dt, grid_shape=(3600, 7200)):
+    start = time.time()
+    ## Resolve satellite
+    for attrs in ALL_SATS:
+        if attrs['sat'] == sat:
+            break
+    else:
+        print(f'Unknown satellite {sat}')
+        return
+
+    sat_zen_out = make_sample.sample_path(dt, 'satellite_zenith_angle', sat)
+    sat_azi_out = make_sample.sample_path(dt, 'satellite_azimuth_angle', sat)
+    if sat_zen_out.exists() and sat_azi_out.exists():
+        print(f'Already have {sat}')
+        return
+
+    reader = attrs['reader']
+    # order bands in descending resolution
+    ordered_bands = sorted(attrs['res'].items(), key=lambda x:x[1], reverse=True)
+    for band,_ in ordered_bands:
+        band_dir = band_dir_path(dt, sat, band)
+        if band_dir.is_dir():
+            files = list(band_dir.glob('*'))
+            if len(files) > 0:
+                index_band = band
+                res = attrs['res'][band]
+                index_band = make_sample.get_index_bands(attrs['res'])[res]
+                del band
+                break
+    else:
+        print(f'No data for {sat} on {dt}')
+        return
+    print(f'Using {index_band} for {sat} on {dt}')
+    src_index, dst_index, src_index_nn, dst_index_nn = make_sample.open_index(make_sample.INDEX, sat, index_band)
+    print('Reading projection')
+    area = get_area(files, reader=reader)
+    print('Compute satellite zenith angle')
+    sat_zen = get_satzen(area)
+    print('Resample satellite zenith angle')
+    sat_zen = make_sample.remap_fast_mean(src_index_nn, dst_index_nn, sat_zen, grid_shape)
+    #sat_zen = make_sample.remap_fast_mean(src_index, dst_index, sat_zen, grid_shape)
+    print('Compute satellite azimuth angle')
+    sat_azi = get_satazi(area)
+    rad_azi = np.deg2rad(sat_azi)
+    cos_azi = np.cos(rad_azi)
+    sin_azi = np.sin(rad_azi)
+    print('Resample satellite azimuth angle')
+    #cos_azi = make_sample.remap_fast_mean(src_index, dst_index, cos_azi, grid_shape)
+    #sin_azi = make_sample.remap_fast_mean(src_index, dst_index, sin_azi, grid_shape)
+    #sat_azi = np.rad2deg(np.arctan2(sin_azi, cos_azi))
+    sat_azi = make_sample.remap_fast_mean(src_index_nn, dst_index_nn, sat_azi, grid_shape)
+    print('Save')
+    make_sample.save(sat_zen, 'satellite_zenith_angle', sat_zen_out)
+    make_sample.save(sat_azi, 'satellite_azimuth_angle', sat_azi_out)
+    print(f'Done in {time.time()-start:.1f}s')
 
 
 def _composite_geometry(CACHE, k):
-    out_nc = make_sample.COMP_CACHE / f'{k}.nc'
+    out_nc = make_sample.SAMPLE_CACHE / f'{k}.nc'
     if out_nc.exists():
         print(f'Already have {out_nc}')
         return
@@ -178,6 +258,25 @@ def composite_zenith():
 
 
 if __name__ == '__main__':
-    make_geometry(Path('dat/l1b/2022/07/01/0000/'), datetime(2022,7,1))
-    #composite_zenith()
-
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--freq', default='30min')
+    parser.add_argument('sat')
+    parser.add_argument('start')
+    parser.add_argument('end', nargs='?', default=None)
+    args = parser.parse_args()
+    sat = args.sat
+    dt = pd.to_datetime(args.start)
+    if args.end is not None:
+        end = pd.to_datetime(args.end)
+        for dt in pd.date_range(dt, end, freq=args.freq):
+            print(args.sat, dt)
+            try:
+                 sample_geometry(sat, dt)
+            except Exception as e:
+                print(e, flush=True)
+            finally:
+                pass
+    else:
+         sample_geometry(sat, dt)
+   

@@ -6,8 +6,6 @@ from datetime import datetime, timedelta
 import json
 
 import utils
-
-import make_index
 import netCDF4
 
 def default_attrs():
@@ -62,6 +60,18 @@ def default_attrs():
         'long_name':'approximate scan time',
         'standard_name':'time',
     }
+    attrs['solar_azimuth_angle'] = {
+        'standard_name': 'solar_azimuth_angle',
+        'units':'degree',
+        'description':'solar angle for surface observer in degrees clockwise from north',
+        'value_range':'-180 to 180 degrees'
+    }
+    attrs['solar_zenith_angle'] = {
+        'standard_name': 'solar_zenith_angle',
+        'units':'degree',
+        'description':'solar angle for surface observer in degrees from zenith',
+        'value_range':'0 to 180 degrees'
+    }
     return attrs
 
 
@@ -101,8 +111,8 @@ def default_encoding(grid_shape):
         elif k.startswith('temp'):
             encoding[k] = {
                 'zlib':True,
-                'scale_factor':.25,
-                'add_offset':250.0,
+                'scale_factor':.01,
+                'add_offset':50.0,
                 'dtype':'i2',
                 '_FillValue':netCDF4.default_fillvals['i2'],
                 'chunksizes':(1,1,*grid_shape),
@@ -111,6 +121,17 @@ def default_encoding(grid_shape):
             }
         else:
             print(k)
+        if k.endswith('_count'):
+            encoding[k] = {
+                'zlib':True,
+                'dtype':'i1',
+                '_FillValue':netCDF4.default_fillvals['i1'],
+                'chunksizes':(1,1,*grid_shape),
+                'shuffle':False,
+                'complevel':1
+            }
+        elif k.endswith('_std'):
+            encoding[k]['add_offset'] = 0.0
     for k in ['latitude','longitude']:
         encoding[k] = {
             'zlib':False,
@@ -118,6 +139,58 @@ def default_encoding(grid_shape):
             '_FillValue':netCDF4.default_fillvals['f8'],
             'shuffle':False,
         }
+    encoding['pixel_time'] = {
+        'zlib':True,
+        'dtype':'i2',
+        '_FillValue':netCDF4.default_fillvals['i2'],
+        'chunksizes':(1,1,*grid_shape),
+        'shuffle':False,
+        'complevel':1
+    }
+    encoding['satellite_zenith_angle'] = {
+        'zlib':True,
+        'scale_factor':.1,
+        'dtype':'i2',
+        '_FillValue':netCDF4.default_fillvals['i2'],
+        'chunksizes':(1,1,*grid_shape),
+        'shuffle':False,
+        'complevel':1
+    }
+    encoding['satellite_azimuth_angle'] = {
+        'zlib':True,
+        'scale_factor':.1,
+        'dtype':'i2',
+        '_FillValue':netCDF4.default_fillvals['i2'],
+        'chunksizes':(1,1,*grid_shape),
+        'shuffle':False,
+        'complevel':1
+    }
+    encoding['solar_zenith_angle'] = {
+        'zlib':True,
+        'scale_factor':.1,
+        'dtype':'i2',
+        '_FillValue':netCDF4.default_fillvals['i2'],
+        'chunksizes':(1,*grid_shape),
+        'shuffle':False,
+        'complevel':1
+    }
+    encoding['solar_azimuth_angle'] = {
+        'zlib':True,
+        'scale_factor':.1,
+        'dtype':'i2',
+        '_FillValue':netCDF4.default_fillvals['i2'],
+        'chunksizes':(1,*grid_shape),
+        'shuffle':False,
+        'complevel':1
+    }
+    encoding['wmo_id'] = {
+        'zlib':True,
+        'dtype': 'i2',
+        '_FillValue':netCDF4.default_fillvals['i2'],
+        'chunksizes':(1,1,*grid_shape),
+        'complevel':1,
+        'shuffle':False,
+    }
     return encoding
 
 

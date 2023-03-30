@@ -1,8 +1,7 @@
 index
-geometry
-notebooks/get_geometry.ipynb
+geometry (special sampling)
+sorting
 sample
-add satellite azimuth
 timing
-rewrite netcdf
+composite
 solar

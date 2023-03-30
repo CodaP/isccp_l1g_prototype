@@ -39,6 +39,7 @@ def get_grid(res=.05):
     return pc
 
 def get_area(files, reader=None):
+    files = [str(f) for f in files]
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         old_stdout = sys.stdout
@@ -236,7 +237,9 @@ def rad_to_bt(rad, wavelength_um):
     # B = 1/(exp(hv/(kb T)) - 1)
     # T = hv/log(1/B + 1)/kb
     c = H*freq/KB
-    bt[mask] = c/np.log(1/rad[mask] + 1)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        bt[mask] = c/np.log(1/rad[mask] + 1)
     return bt
 
 

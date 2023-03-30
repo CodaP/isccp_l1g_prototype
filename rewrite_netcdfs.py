@@ -3,7 +3,7 @@ from tqdm import tqdm
 from datetime import datetime
 import make_netcdf
 import utils
-from make_sample import comp_cache_dir
+from make_sample import sample_cache_dir
 from multiprocessing import Pool
 OUT = Path('dat/final')
 COMPOSITE_CACHE = Path('dat/composite_cache')
@@ -47,7 +47,7 @@ def main(task_id, num_tasks, missing=False):
     dts = dts[task_id::num_tasks]
     print(len(dts), 'dts')
     for i,dt in enumerate(dts,1):
-        out_dir = comp_cache_dir(dt)
+        out_dir = sample_cache_dir(dt)
         if out_dir.is_dir():
             for f in out_dir.glob('*.nc'):
                 tasks.append((dt, f))

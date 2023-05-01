@@ -33,22 +33,6 @@ def get_nn_index(area, pc, radius=5e3, nprocs=8):
     return grid_idx, sat_idx
     
 
-def get_index(area, pc, satzen, max_satzen, radius=5000, nprocs=8):
-    valid_input_index, valid_output_index, index_array, distance_array = get_neighbour_info(pc,
-                           area,
-                           radius,
-                           neighbours=1,
-                           nprocs=nprocs)
-    sat_idx = np.arange(valid_output_index.size)[valid_output_index][index_array!=valid_input_index.sum()]
-    grid_idx = np.arange(valid_input_index.size)[valid_input_index][index_array[index_array!=valid_input_index.sum()]]
-    s = pd.Series(sat_idx, index=grid_idx)
-    s.sort_index(inplace=True)
-    mask = satzen.ravel()[s.values] < max_satzen
-    s = s.loc[mask]
-    grid_idx = s.index.values.astype(np.uint64)
-    sat_idx = s.values.astype(np.uint64)
-    return grid_idx, sat_idx
-
 
 def get_index_fast(area, pc, radius=2e3, nprocs=8):
     assert radius == 2e3
@@ -63,11 +47,6 @@ def get_index_fast(area, pc, radius=2e3, nprocs=8):
     subprocess.run(['./main',str(rows),str(cols), str(grid_rows),str(grid_cols), f'{radius:.0f}'], cwd='coord_descent', capture_output=False)
     sat_idx = np.memmap('coord_descent/src_index.dat', mode='r', dtype=np.uint32)
     grid_idx = np.memmap('coord_descent/dst_index.dat', mode='r', dtype=np.uint32)
-    #s = pd.Series(sat_idx, index=grid_idx)
-    #mask = satzen.ravel()[s] < max_satzen
-    #s = s.loc[mask]
-    #grid_idx = s.index.values.astype(np.uint64)
-    #sat_idx = s.values.astype(np.uint64)
     return grid_idx, sat_idx
 
 
@@ -75,7 +54,7 @@ def set_d(bar, msg):
     if bar is not None:
         bar.set_description(f'{bar.prefix} {msg}')
 
-def make_one(files, out_dir, satzen_nc, max_satzen, bar=None):
+def make_one(files, out_dir, bar=None):
     dst_index_path = out_dir / 'dst_index.dat'
     src_index_path = out_dir / 'src_index.dat'
     dst_index_nn_path = out_dir / 'dst_index_nn.dat'
@@ -88,20 +67,14 @@ def make_one(files, out_dir, satzen_nc, max_satzen, bar=None):
 
     set_d(bar, f'Making {out_dir}')
     out_dir.mkdir(exist_ok=True, parents=True)
-    set_d(bar, 'loading satzen')
-    #satzen = xr.open_dataset(satzen_nc).satzen.load()
     set_d(bar, 'getting area')
     area = get_area(files)
-    #set_d(bar, 'interpolating satzen')
-    #satzen = satzen.interp(y=np.linspace(0,satzen.shape[0], area.shape[0]),
-        #x=np.linspace(0,satzen.shape[1], area.shape[1])).values
     set_d(bar, 'setup grid')
     grid = get_grid()
     
     # Elliptical mean
     if not (dst_index_path.exists() and src_index_path.exists()):
         set_d(bar, f'making ellip index ({area.shape}) -> ({grid.shape})')
-        #grid_idx, sat_idx = get_index(area, grid, satzen, max_satzen, radius=2e3)
         grid_idx, sat_idx = get_index_fast(area, grid, radius=2e3)
         set_d(bar, 'saving ellip index')
         with open(dst_index_path,'wb') as fp:
@@ -143,30 +116,15 @@ def main(dt, r_sample=2):
                 continue
             input_files = list(input_dir.glob('*'))
             output_dir = Path('dat/index') / sat / band
-            satzen_nc = Path('dat/satzen_cache') / f'{sat}_satellite_zenith_angle.nc'
-            assert satzen_nc.exists(), str(satzen_nc)
-            set_d(bar, 'getting max satzen')
-            max_satzen = get_max_satzen(r_footprint, r_sample)
             set_d(bar, 'making index')
-            make_one(input_files, output_dir, satzen_nc, max_satzen, bar=bar)
-
-
-def get_max_satzen(r_footprint, r_sample):
-    max_satzen = np.rad2deg(np.arccos(r_footprint / r_sample))
-    return max_satzen
+            make_one(input_files, output_dir, bar=bar)
         
         
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    #parser.add_argument('input_files', nargs='+')
-    #parser.add_argument('output_dir')
-    #parser.add_argument('satzen_nc')
-    #parser.add_argument('max_satzen', type=float)
     parser.add_argument('dt')
     args = parser.parse_args()
     dt = pd.to_datetime(args.dt)
-    #input_files = [Path(f) for f in args.input_files]
-    #main(input_files, Path(args.output_dir), Path(args.satzen_nc), args.max_satzen)
     main(dt)
     

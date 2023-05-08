@@ -20,11 +20,6 @@ from datetime import datetime
 import os
 import pandas as pd
 
-SATZEN_CACHE = Path('dat/satzen_cache')
-SATZEN_CACHE.mkdir(exist_ok=True)
-SATAZI_CACHE = Path('dat/satazi_cache')
-SATAZI_CACHE.mkdir(exist_ok=True)
-
 def get_satzen(area):
     height, width = area.shape
     with warnings.catch_warnings():
@@ -103,43 +98,6 @@ SATAZI_ENCODING = {
         '_FillValue':netCDF4.default_fillvals['i2']
     }
 }
-
-
-def make_geometry(dt_dir, dt):
-    satzen_out_dir = SATZEN_CACHE / dt.strftime('%Y/%m/%d')
-    satazi_out_dir = SATAZI_CACHE / dt.strftime('%Y/%m/%d')
-
-    with tqdm(ALL_SATS) as bar:
-        for attrs in bar:
-            sat = attrs['sat']
-            satzen_out = satzen_out_dir / f'{sat}_satellite_zenith_angle.nc'
-            satazi_out = satazi_out_dir / f'{sat}_satellite_azimuth_angle.nc'
-            if satzen_out.exists() and satazi_out.exists():
-                print(f'Already have {sat}')
-                continue
-            reader = attrs['reader']
-            data_dir = dt_dir / sat / f'temp_11_00um'
-            files = list(data_dir.glob('*'))
-            if len(files) == 0:
-                print(f'No data for {sat}: {data_dir}')
-                continue
-            satzen_out.parent.mkdir(exist_ok=True, parents=True)
-            satazi_out.parent.mkdir(exist_ok=True, parents=True)
-            area = get_area(files, reader=reader)
-            bar.set_description(f'{sat} satzen')
-            sat_zen = get_satzen(area)
-            bar.set_description(f'{sat} satazi')
-            sat_azi = get_satazi(area)
-            
-            ds = xr.Dataset()
-            ds['satellite_zenith_angle'] = ['y','x'], sat_zen
-            bar.set_description(f'saving {satzen_out}')
-            ds.to_netcdf(satzen_out, encoding=SATZEN_ENCODING)
-
-            ds = xr.Dataset()
-            ds['satellite_azimuth_angle'] = ['y','x'], sat_azi
-            bar.set_description(f'saving {satazi_out}')
-            ds.to_netcdf(satazi_out, encoding=SATAZI_ENCODING)
 
 
 def sample_geometry(sat, dt, grid_shape=(3600, 7200)):

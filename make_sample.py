@@ -287,7 +287,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--freq',default='30min')
-    parser.add_argument('--compdir')
+    parser.add_argument('--compdir', required=True)
     parser.add_argument('sat')
     parser.add_argument('band')
     parser.add_argument('dt')

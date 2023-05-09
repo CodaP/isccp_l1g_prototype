@@ -216,23 +216,21 @@ def save_all(sample, band, with_stats, output_paths):
     else:
         save(sample, band, output_paths)
 
-def load_sort_data(sort_dir):
+def load_sort_data(comp_dir):
     global GRID_SHAPE
-    if sort_dir is None:
-        sort_dir = SAMPLE_CACHE
-    wmo_ids = xr.open_dataset(sort_dir / 'wmo_id.nc').wmo_id
-    sample_mode = xr.open_dataset(sort_dir / 'sample_mode.nc').sample_mode
+    wmo_ids = xr.open_dataset(comp_dir / 'wmo_id.nc').wmo_id
+    sample_mode = xr.open_dataset(comp_dir / 'sample_mode.nc').sample_mode
     GRID_SHAPE = sample_mode.shape[-2:]
     return wmo_ids, sample_mode
 
 
-def main(sat, band, dt, sort_dir=None, progress=True):
+def main(sat, band, dt, comp_dir=None, progress=True):
 
-    sort_dir = Path(sort_dir)
-    if not sort_dir.is_dir():
-        print(f'Invalid sort directory {sort_dir}')
+    comp_dir = Path(comp_dir)
+    if not comp_dir.is_dir():
+        print(f'Invalid comp directory {comp_dir}')
         return
-    wmo_ids, sample_mode = load_sort_data(sort_dir)
+    wmo_ids, sample_mode = load_sort_data(comp_dir)
 
     ## Resolve satellite
     for attrs in ALL_SATS:
@@ -289,7 +287,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--freq',default='30min')
-    parser.add_argument('--sortdir')
+    parser.add_argument('--compdir')
     parser.add_argument('sat')
     parser.add_argument('band')
     parser.add_argument('dt')
@@ -301,11 +299,11 @@ if __name__ == '__main__':
         for dt in pd.date_range(dt, end, freq=args.freq):
             print(args.sat, args.band, dt)
             try:
-                main(args.sat, args.band, dt, sort_dir=args.sortdir)
+                main(args.sat, args.band, dt, comp_dir=args.compdir)
             except Exception as e:
                 print(e, flush=True)
             finally:
                 pass
     else:
-        main(args.sat, args.band, dt, sort_dir=args.sortdir)
+        main(args.sat, args.band, dt, comp_dir=args.compdir)
 

@@ -9,10 +9,10 @@ def load_sample_mode(f):
     ds = xr.open_dataset(f)
     return ds['sample_mode'].load()
 
-def main(dt, sort_dir, force=False):
-    sort_dir = Path(sort_dir)
-    wmo_id_f = sort_dir / 'wmo_id.nc'
-    sample_mode_f = sort_dir / 'sample_mode.nc'
+def main(dt, comp_dir, force=False):
+    comp_dir = Path(comp_dir)
+    wmo_id_f = comp_dir / 'wmo_id.nc'
+    sample_mode_f = comp_dir / 'sample_mode.nc'
     grid = get_grid()
     lon, lat = grid.get_lonlats()
     lon = lon[0]
@@ -30,7 +30,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--freq', default='30min')
-    parser.add_argument('--sortdir')
+    parser.add_argument('--compdir')
     parser.add_argument('dt')
     parser.add_argument('end', nargs='?')
     args = parser.parse_args()
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         end = pd.to_datetime(args.end)
         for dt in pd.date_range(dt, end, freq=args.freq):
             print(dt)
-            main(dt, args.sortdir)
+            main(dt, args.compdir)
     else:
-        main(dt, args.sortdir)
+        main(dt, args.compdir)
 

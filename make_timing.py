@@ -12,13 +12,13 @@ import pandas as pd
 
 ABI_SCAN_DIR = Path('dat/ancil/abi_scan_schedule/')
 
-def load_sort_data(sort_dir):
+def load_sort_data(comp_dir):
     global GRID_SHAPE
-    if sort_dir is None:
-        sort_dir = SAMPLE_CACHE
+    if comp_dir is None:
+        comp_dir = SAMPLE_CACHE
     else:
-        sort_dir = Path(sort_dir)
-    wmo_ids = xr.open_dataset(sort_dir / 'wmo_id.nc').wmo_id
+        comp_dir = Path(comp_dir)
+    wmo_ids = xr.open_dataset(comp_dir / 'wmo_id.nc').wmo_id
     GRID_SHAPE = wmo_ids.shape[-2:]
     return wmo_ids
 
@@ -74,13 +74,13 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--freq',default='30min')
-    parser.add_argument('--sortdir')
+    parser.add_argument('--compdir', required=True)
     parser.add_argument('sat')
     parser.add_argument('dt')
     parser.add_argument('end', nargs='?')
     args = parser.parse_args()
     dt = pd.to_datetime(args.dt)
-    WMO_IDS = load_sort_data(args.sortdir)
+    WMO_IDS = load_sort_data(args.compdir)
     if args.end is not None:
         end = pd.to_datetime(args.end)
         for dt in pd.date_range(dt, end, freq=args.freq):

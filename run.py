@@ -11,7 +11,7 @@ async def main(n_workers):
         if DO_ANCIL:
             args = ['srun','-N1','-n1','-p','cirrus','-c','1','--time','01:00:00','--mem-per-cpu=3G',
                 'python','make_ancil.py',
-                '--sortdir',str(SORTDIR),
+                '--compdir',str(COMPDIR),
                 f'--freq={freq}',start.strftime('%Y%m%dT%H%M'), end.strftime('%Y%m%dT%H%M')
             ]
             tasks.append(args)
@@ -31,7 +31,7 @@ async def main(n_workers):
         for sat in ['g16','g17','h8','m8','m11']:#,'m9']:
             if DO_TIMING:
                 args = ['srun','-N1','-n1','-p','cirrus','-c','4','--time','01:00:00','--mem-per-cpu=3G','python','make_timing.py',
-                    '--sortdir',str(SORTDIR),
+                    '--compdir',str(COMPDIR),
                     f'--freq={freq}',
                     sat,start.strftime('%Y%m%dT%H%M'), end.strftime('%Y%m%dT%H%M')]
                 tasks.append(args)
@@ -44,8 +44,8 @@ async def main(n_workers):
             for sat in ['g16','g17','h8','m8','m11']:#,'m9']:
                 if DO_SAMPLE:
                     args = ['srun','-N1','-n1','-p','cirrus','-c','4','--time','01:00:00','--mem-per-cpu=3G','python','make_sample.py',
-                        #'--sortdir','dat/sample_cache/g16_g17_h8_m11_m9',
-                        '--sortdir',str(SORTDIR),
+                        #'--compdir','dat/sample_cache/g16_g17_h8_m11_m9',
+                        '--compdir',str(COMPDIR),
                         f'--freq={freq}',
                         sat,k,start.strftime('%Y%m%dT%H%M'), end.strftime('%Y%m%dT%H%M')]
                     tasks.append(args)
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--freq',default='30min')
-    parser.add_argument('--sortdir')
+    parser.add_argument('--compdir')
     parser.add_argument('stage')
     parser.add_argument('dt')
     parser.add_argument('end', nargs='?')
@@ -109,8 +109,8 @@ if __name__ == '__main__':
     dt = pd.to_datetime(args.dt)
     DO = args.stage
     freq = args.freq
-    SORTDIR = Path(args.sortdir)
-    WMO_ID_FILE = SORTDIR / 'wmo_id.nc'
+    COMPDIR = Path(args.compdir)
+    WMO_ID_FILE = COMPDIR / 'wmo_id.nc'
 
     if args.end is not None:
         end = pd.to_datetime(args.end)

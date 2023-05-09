@@ -123,6 +123,9 @@ if __name__ == '__main__':
     VARIABLES = {
     #'refl_00_47um',
     'refl_00_65um',
+    'refl_00_65um_min',
+    'refl_00_65um_max',
+    'refl_00_65um_stddev',
     #'refl_00_51um',
     'refl_00_86um',
     'refl_01_60um',

@@ -1,3 +1,6 @@
+"""
+Create src_index.dat and dst_index.dat files in $DAT/index/$sat/$band
+"""
 
 import pyresample
 from pyresample.kd_tree import get_neighbour_info

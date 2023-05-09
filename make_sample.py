@@ -20,7 +20,7 @@ import zstandard as zstd
 WMO_ID = WMO_IDS
 USER = os.environ['USER']
 
-SAMPLE_CACHE = Path('dat/sample_cache').absolute()
+SAMPLE_CACHE = Path('dat/sample_cache').resolve()
 SAMPLE_CACHE.mkdir(exist_ok=True)
 
 INDEX = Path('dat/index').absolute()

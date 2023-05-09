@@ -20,7 +20,7 @@ import sys
 import make_netcdf
 import zstandard as zstd
 from utils import ALL_SATS, get_grid
-from make_sample import SAMPLE_CACHE, sample_path
+from make_sample import sample_path
 import traceback
 
 NETCDF_OUT = Path('dat/final').absolute()
@@ -54,21 +54,21 @@ def save_netcdf(da, out, k, dt, lat, lon):
     return out
 
 
-def read_dat(f, band):
-    encoding = make_netcdf.default_encoding(GRID_SHAPE)[band]
+def read_dat(f, band, grid_shape=None):
+    if grid_shape is None:
+        grid_shape = GRID_SHAPE
+    encoding = make_netcdf.default_encoding(grid_shape)[band]
     fill = encoding['_FillValue']
     dtype = encoding['dtype']
     with open(f, 'rb') as fp:
         dat = np.frombuffer(zstd.decompress(fp.read()), dtype=dtype)
-    dat = dat.reshape(GRID_SHAPE[-2:])
+    dat = dat.reshape(grid_shape[-2:])
     dat = np.ma.masked_equal(dat, fill)
     dat.fill_value = fill
     return dat
 
-def load_wmo_ids(f=None):
+def load_wmo_ids(f):
     global GRID_SHAPE
-    if f is None:
-        f = SAMPLE_CACHE / 'wmo_id.nc'
     wmo_id = xr.open_dataset(f).wmo_id
     GRID_SHAPE = wmo_id.shape
     return wmo_id
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--freq',default='30min')
-    parser.add_argument('-w', '--wmoids')
+    parser.add_argument('-w', '--wmoids', required=True)
     parser.add_argument('-f','--force', action='store_true')
     parser.add_argument('band')
     parser.add_argument('dt')

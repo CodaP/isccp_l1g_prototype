@@ -125,7 +125,7 @@ if __name__ == '__main__':
     'refl_00_65um',
     'refl_00_65um_min',
     'refl_00_65um_max',
-    'refl_00_65um_stddev',
+    'refl_00_65um_std',
     #'refl_00_51um',
     'refl_00_86um',
     'refl_01_60um',
@@ -138,10 +138,12 @@ if __name__ == '__main__':
     #'temp_09_70um',
     'temp_10_40um',
     'temp_11_00um',
+    'temp_11_00um_min',
+    'temp_11_00um_max',
+    'temp_11_00um_std',
     'temp_12_00um',
     'temp_13_30um',
     }
-    VARIABLES = {'temp_11_00um_min','temp_11_00um_max', 'refl_00_65um_min','refl_00_65um_max'}
     AUX_VARS = {
     'pixel_time',
     'satellite_zenith_angle',

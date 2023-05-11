@@ -125,10 +125,10 @@ def sample_band(band, index_band, sat, dt, reader, wmo_id, wmo_ids, sample_mode,
         for layer in range(sample_mode.shape[0]):
             if do_nn:
                 # Nearest-neighbor sampling
-                mask = (wmo_ids[layer].values == wmo_id) & (sample_mode[layer].values == 1)
+                mask = (wmo_ids[layer].values == wmo_id) & (sample_mode[layer].values == 2)
                 sample[mask] = out_nn[mask]
             # Agg sampling
-            mask = (wmo_ids[layer].values == wmo_id) & (sample_mode[layer].values == 2)
+            mask = (wmo_ids[layer].values == wmo_id) & (sample_mode[layer].values == 1)
             sample[mask] = out[mask]
     if not with_stats:
         do_sample(sample, out_nn, out)

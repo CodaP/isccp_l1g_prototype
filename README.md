@@ -19,9 +19,9 @@ mkdir tar dat
 ```
 
 Download into `tar/`
-  - [isccp_l1g.tar](https://ftp.ssec.wisc.edu/ISCCP-NG/code/isccp_l1g.tar)
-  - [example_l1b.tar.gz](https://ftp.ssec.wisc.edu/ISCCP-NG/code/example_l1b.tar.gz)
-  - [index.tar.gz](https://ftp.ssec.wisc.edu/ISCCP-NG/code/index.tar.gz)
+  - [isccp_l1g.tar](https://ftp.ssec.wisc.edu/ISCCP-NG/L1g/code/isccp_l1g.tar)
+  - [example_l1b.tar.gz](https://ftp.ssec.wisc.edu/ISCCP-NG/L1g/code/example_l1b.tar.gz)
+  - [index.tar.gz](https://ftp.ssec.wisc.edu/ISCCP-NG/L1g/code/index.tar.gz)
 
 Extract index into `dat/`, this is an index I made beforehand to save time. You can make your own in an hour with `make_index.py`
 ```bash

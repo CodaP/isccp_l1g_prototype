@@ -17,6 +17,7 @@ RUN mkdir dat scratch && ln -s /home/mambauser/dat isccp_l1g/dat
 ENV TMPDIR=/home/mambauser/scratch
 ADD tar/coord_descent.tar isccp_l1g/
 ADD tar/xrit.tar isccp_l1g/
+ADD tar/ancil.tar dat/
 # this file will exist in isccp_l1g/, but we want it one level up and we want uncommitted changes too
 COPY get_started.sh get_started.sh
 

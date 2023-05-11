@@ -7,14 +7,14 @@ The provisional approach is to include all channels every 30 minutes with a maxi
 
 ## Getting Started
 
-Clone this repository
+Make a working directory
 ```bash
-git clone https://gitlab.ssec.wisc.edu/cphillips/isccp_l1g_prototype.git
+mkdir test_install
 ```
 
 Make a tar dir and a dat dir
 ```bash
-cd isccp_l1g_prototype
+cd test_install
 mkdir tar dat
 ```
 
@@ -32,7 +32,7 @@ tar -C dat -xvf tar/index.tar.gz
 docker load -i tar/isccp_l1g.tar
 
 # run docker image
-bash docker_run.sh
+docker run -it --rm -v $PWD:/host -u root isccp_l1g /bin/bash -l
 ```
 
 Inside the docker container, the following command will run the example.

@@ -19,6 +19,7 @@ The provisional approach is to include all channels every 30 minutes with a maxi
 The first step is to construct the resampling index for each satellite.
 To do this we need at least one granule of data to provide the coordinates of the satellite pixels.
 We assume the data is fix-grid. This step only needs to be done once for each resolution of each sensor.
+This step requires lots of RAM, recommend at least 32GB. It takes about an hour
 
 *Example:*
 ```
@@ -77,6 +78,22 @@ ls dat/sample_cache/2020/07/01/0000/g16/
 ```
 
 
+#### Make Timing
+
+This step makes the pixel-level timing.
+Line-level times are stored in l1b for Himawari-8 and Meteosat-8/11, but not for GOES-16/17.
+Timing for GOES-16/17 is estimated from a static scan schedule in ancillary files.
+By default, the 11 micron l1b is used to estimate the timing for all bands.
+The output is a `pixel_time.dat.zstd` file in `sample_cache`
+
+*Example:*
+```
+python make_timing.py --compdir dat/comp/g16_g17_h8_m11_m8/ g16 2020-07-01
+...
+ls dat/sample_cache/2020/07/01/0000/g16/
+    pixel_time.dat.zstd
+```
+
 #### Composite
 
 This step reads the intermediate files and shuffles the data into the final netcdf format.
@@ -89,6 +106,31 @@ ls dat/final/2020/07/01/0000/
     ISCCP-NG_L1g_demo_v2_res_0_05deg__temp_11_00um__20200701T0000.nc
 ```
 
+#### Make Ancil
+
+`wmo_id` and `sample_mode` are ancillary variables that are mostly static, but we make them for each timestep anyway.
+
+*Example:*
+```
+python make_ancil.py --compdir dat/comp/g16_g17_h8_m11_m8/ 2020-07-01
+...
+ls dat/final/2020/07/01/0000/
+    ISCCP-NG_L1g_demo_v2_res_0_05deg__wmo_id__20200701T0000.nc
+    ISCCP-NG_L1g_demo_v2_res_0_05deg__sample_mode__20200701T0000.nc
+```
+
+#### Make Solar
+
+This step makes the solar zenith and azimuth angles for each pixel in the final grid.
+
+*Example:*
+```
+python make_solar.py 2020-07-01
+...
+ls dat/final/2020/07/01/0000/
+    ISCCP-NG_L1g_demo_v2_res_0_05deg__solar_azimuth_angle__20200701T0000.nc
+    ISCCP-NG_L1g_demo_v2_res_0_05deg__solar_zenith_angle__20200701T0000.nc
+```
 
 ### L1b
 

@@ -24,7 +24,7 @@ async def main(n_workers):
             tasks.append(args)
         if DO_SOLAR:
             args = ['srun','-N1','-n1','-p','cirrus','-c','1','--time','01:00:00','--mem-per-cpu=3G',
-                'python','solar.py',
+                'python','make_solar.py',
                 f'--freq={freq}',start.strftime('%Y%m%dT%H%M'), end.strftime('%Y%m%dT%H%M')
             ]
             tasks.append(args)

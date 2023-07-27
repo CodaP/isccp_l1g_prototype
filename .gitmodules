@@ -1,0 +1,3 @@
+[submodule "coord_descent"]
+	path = coord_descent
+	url = https://gitlab.ssec.wisc.edu/cphillips/coord_descent.git

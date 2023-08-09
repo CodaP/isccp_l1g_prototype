@@ -28,7 +28,7 @@ async def main(n_workers):
                 f'--freq={freq}',start.strftime('%Y%m%dT%H%M'), end.strftime('%Y%m%dT%H%M')
             ]
             tasks.append(args)
-        for sat in ['g16','g17','h8','m8','m11']:#,'m9']:
+        for sat in SATELLITES:
             if DO_TIMING:
                 args = ['srun','-N1','-n1','-p','cirrus','-c','4','--time','01:00:00','--mem-per-cpu=3G','python','make_timing.py',
                     '--compdir',str(COMPDIR),
@@ -41,7 +41,7 @@ async def main(n_workers):
                     sat,start.strftime('%Y%m%dT%H%M'), end.strftime('%Y%m%dT%H%M')]
                 tasks.append(args)
         for k in VARIABLES:
-            for sat in ['g16','g17','h8','m8','m11']:#,'m9']:
+            for sat in SATELLITES:
                 if DO_SAMPLE:
                     args = ['srun','-N1','-n1','-p','cirrus','-c','4','--time','01:00:00','--mem-per-cpu=3G','python','make_sample.py',
                         #'--compdir','dat/sample_cache/g16_g17_h8_m11_m9',
@@ -109,33 +109,35 @@ if __name__ == '__main__':
     dt = pd.to_datetime(args.dt)
     DO = args.stage
     freq = args.freq
-    COMPDIR = Path(args.compdir)
-    WMO_ID_FILE = COMPDIR / 'wmo_id.nc'
+    if args.compdir is not None:
+        COMPDIR = Path(args.compdir)
+        WMO_ID_FILE = COMPDIR / 'wmo_id.nc'
 
     if args.end is not None:
         end = pd.to_datetime(args.end)
-        dates = pd.date_range(dt, end, freq='1D')
+        dates = pd.date_range(dt, end, freq='4H')
     else:
-        dates = [dt]
+        dates = [dt, dt+pd.to_timedelta(args.freq)]
 
     procs = []
 
     VARIABLES = {
-    #'refl_00_47um',
+    'refl_00_47um',
     'refl_00_65um',
     'refl_00_65um_min',
     'refl_00_65um_max',
     'refl_00_65um_std',
-    #'refl_00_51um',
+    'refl_00_51um',
     'refl_00_86um',
+    'refl_01_38um',
     'refl_01_60um',
-    #'refl_02_20um',
+    'refl_02_20um',
     'temp_03_80um',
-    #'temp_06_20um',
-    #'temp_06_70um',
+    'temp_06_20um',
+    'temp_06_70um',
     'temp_07_30um',
     'temp_08_60um',
-    #'temp_09_70um',
+    'temp_09_70um',
     'temp_10_40um',
     'temp_11_00um',
     'temp_11_00um_min',
@@ -150,12 +152,14 @@ if __name__ == '__main__':
     'satellite_azimuth_angle'
     }
 
+    SATELLITES = ['g16','g17','h8','m8','m11']
+
     DO_COLLECT=DO=='collect'
     DO_SOLAR=DO=='solar'
     DO_TIMING=DO=='timing'
     DO_SAMPLE=DO=='sample'
     DO_COMPOSITE=DO=='composite'
-    DO_AUX_COMPOSITE=DO=='aux'
+    DO_AUX_COMPOSITE=DO=='aux_composite'
     DO_GEOMETRY=DO=='geometry'
     DO_ANCIL=DO=='ancil'
 

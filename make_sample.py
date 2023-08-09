@@ -157,7 +157,8 @@ def tmpdir(sat, band, dt):
         os.environ['TMP'] = str(tmp)
         yield tmp
     finally:
-        shutil.rmtree(tmp)
+        if tmp.is_dir():
+            shutil.rmtree(tmp)
         tempfile.tempdir = str(tmp_root)
         os.environ['TMP'] = str(tmp_root)
 

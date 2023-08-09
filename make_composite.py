@@ -2,21 +2,10 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-import netCDF4
-
-from tqdm import tqdm
-import sys
-
-import warnings
 from pathlib import Path
-from make_index import get_index_bands
-from collect_l1b import band_dir_path
 import time
-import tempfile
 import os
 USER = os.environ['USER']
-import shutil
-import sys
 import make_netcdf
 import zstandard as zstd
 from utils import ALL_SATS, get_grid
@@ -25,6 +14,7 @@ import traceback
 
 NETCDF_OUT = Path('dat/final').absolute()
 NETCDF_OUT.mkdir(exist_ok=True)
+AUX_VARS = {'pixel_time', 'satellite_azimuth_angle', 'satellite_zenith_angle', 'wmo_id'}
 
 orig_print = print
 def print(*args, flush=False, **kwargs):
@@ -73,19 +63,20 @@ def load_wmo_ids(f):
     GRID_SHAPE = wmo_id.shape
     return wmo_id
 
-AUX_VARS = {'pixel_time', 'satellite_azimuth_angle', 'satellite_zenith_angle', 'wmo_id'}
-
-def netcdf_path(band, dt):
-    out_dir = make_netcdf.make_output_dir(NETCDF_OUT, dt)
+def netcdf_path(band, dt, root=NETCDF_OUT):
+    out_dir = make_netcdf.make_output_dir(root, dt)
     out = out_dir / make_netcdf.filename(band, dt)
     return out
 
-def main(dt, band, wmo_id_file=None, progress=True, force=False):
+def main(dt, band, wmo_id_file=None, force=False):
     out = netcdf_path(band, dt)
     if out.exists() and not force:
         print(f'Already have {out}')
         return
+    make_composite(out, dt, band, wmo_id_file=wmo_id_file)
 
+
+def make_composite(out, dt, band, wmo_id_file=None):
     grid = get_grid()
     lon, lat = grid.get_lonlats()
     lon = lon[0]
@@ -121,6 +112,7 @@ def main(dt, band, wmo_id_file=None, progress=True, force=False):
     print(f'Writing {out}')
     save_netcdf(composite, out, band, dt, lat, lon)
     return out
+
 
 def ladvise(dt, band):
     import subprocess

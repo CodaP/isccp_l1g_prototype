@@ -11,6 +11,13 @@ import os
 import tempfile
 import socket
 
+import signal
+
+def sigterm_handler(sig, frame):
+  sys.exit(1)
+
+signal.signal(signal.SIGTERM, sigterm_handler)
+
 if socket.gethostname() !='solar3.ssec.wisc.edu' and  tempfile.gettempdir().startswith('/tmp'):
     print('tempdir is currently /tmp, this crashes nodes')
     print(os.environ.get('TMPDIR'), os.environ.get('TEMP'), os.environ.get('TMP'))
